@@ -323,6 +323,231 @@ func (h *A2AHandler) HandleMessageStream(c *gin.Context) {
 }
 ```
 
+## 🔄 Handling Task vs Interactive Modes in A2A Endpoints
+
+The A2A endpoints need to handle both task and interactive modes differently. The mode is determined from the agent configuration and affects how requests are processed.
+
+### Task Mode Handling
+
+In task mode, each A2A request triggers a single execution that completes and terminates:
+
+```mermaid
+sequenceDiagram
+    participant Client as A2A Client
+    participant A2AHandler as A2A Handler
+    participant AgentService as Agent Service
+    participant Agent as CLI Agent (Task Mode)
+
+    Client->>A2AHandler: POST /agents/{agentId}/v1/message:send
+    A2AHandler->>AgentService: ExecuteAgentAsync(input)
+    AgentService->>Agent: Create process, send input, wait for completion
+    Agent-->>AgentService: Return complete output, process terminates
+    AgentService-->>A2AHandler: Execution result
+    A2AHandler-->>Client: A2A response with final result
+```
+
+### Interactive Mode Handling
+
+In interactive mode, A2A requests maintain a session that can handle multiple exchanges:
+
+```mermaid
+sequenceDiagram
+    participant Client as A2A Client
+    participant A2AHandler as A2A Handler
+    participant SessionManager as Session Manager
+    participant Agent as CLI Agent (Interactive Mode)
+
+    Client->>A2AHandler: POST /agents/{agentId}/v1/message:send (first request)
+    A2AHandler->>SessionManager: Create new session
+    SessionManager->>Agent: Create persistent process
+    Agent-->>SessionManager: Session established
+    SessionManager-->>A2AHandler: Session ready
+    A2AHandler-->>Client: Session response
+
+    Note over Client, Agent: Additional exchanges on same session
+    Client->>A2AHandler: POST /agents/{agentId}/v1/message:send (with session context)
+    A2AHandler->>SessionManager: Send input to existing session
+    SessionManager->>Agent: Send input to persistent process
+    Agent-->>SessionManager: Return partial output
+    SessionManager-->>A2AHandler: Partial result
+    A2AHandler-->>Client: Partial response
+```
+
+### Mode Detection and Routing
+
+```go
+func (h *A2AHandler) HandleMessageSend(c *gin.Context) {
+    agentID := c.Param("agentId")
+
+    // Get agent configuration to determine mode
+    agentConfig, err := h.agentService.GetAgentConfig(agentID)
+    if err != nil {
+        c.JSON(404, A2AErrorResponse{
+            Error: A2AError{
+                Code:    -32001,
+                Message: "Agent not found",
+            },
+        })
+        return
+    }
+
+    var request A2AMessageSendRequest
+    if err := c.ShouldBindJSON(&request); err != nil {
+        c.JSON(400, A2AErrorResponse{Error: *err})
+        return
+    }
+
+    var response interface{}
+
+    switch agentConfig.Mode {
+    case "task":
+        response, err = h.handleTaskMode(agentID, request)
+    case "interactive":
+        response, err = h.handleInteractiveMode(agentID, request)
+    default:
+        c.JSON(500, A2AErrorResponse{
+            Error: A2AError{
+                Code:    -32603,
+                Message: "Unknown agent mode",
+            },
+        })
+        return
+    }
+
+    if err != nil {
+        c.JSON(500, A2AErrorResponse{
+            Error: A2AError{
+                Code:    -32002,
+                Message: "Execution failed",
+                Data:    err.Error(),
+            },
+        })
+        return
+    }
+
+    c.JSON(200, response)
+}
+
+func (h *A2AHandler) handleTaskMode(agentID string, request A2AMessageSendRequest) (interface{}, error) {
+    agentInput, err := h.convertA2AToAgentInput(request)
+    if err != nil {
+        return nil, err
+    }
+
+    taskID := h.generateTaskID()
+    result, err := h.agentService.ExecuteAgentAsync(agentID, agentInput, taskID)
+    if err != nil {
+        return nil, err
+    }
+
+    return h.convertAgentResultToA2A(result, request.ID), nil
+}
+
+func (h *A2AHandler) handleInteractiveMode(agentID string, request A2AMessageSendRequest) (interface{}, error) {
+    // Get or create session for this agent
+    session, err := h.sessionManager.GetOrCreateSession(agentID)
+    if err != nil {
+        return nil, err
+    }
+
+    // Convert A2A request to agent input
+    agentInput, err := h.convertA2AToAgentInput(request)
+    if err != nil {
+        return nil, err
+    }
+
+    // Send input to the persistent agent process
+    response, err := session.SendInput(agentInput)
+    if err != nil {
+        return nil, err
+    }
+
+    // Return response in A2A format
+    return A2AMessageSendResponse{
+        Result: A2AResult{
+            Content: response,
+            Format:  "text",
+        },
+        Task: &A2ATask{
+            ID:        session.SessionID,
+            Status:    "running", // Session remains active
+            CreatedAt: session.StartedAt,
+            UpdatedAt: time.Now(),
+        },
+        ID: request.ID,
+    }, nil
+}
+```
+
+### Session Management for Interactive Mode
+
+For interactive mode, the system implements a session manager:
+
+```go
+type InteractiveSession struct {
+    SessionID    string
+    AgentID      string
+    Process      *exec.Cmd
+    Stdin        io.WriteCloser
+    Stdout       io.ReadCloser
+    LastActivity time.Time
+    Timeout      time.Duration
+    Mutex        sync.RWMutex
+}
+
+type SessionManager struct {
+    sessions map[string]*InteractiveSession
+    mutex    sync.RWMutex
+}
+
+func (sm *SessionManager) GetOrCreateSession(agentID string) (*InteractiveSession, error) {
+    sm.mutex.Lock()
+    defer sm.mutex.Unlock()
+
+    // Check if session already exists for this agent
+    for _, session := range sm.sessions {
+        if session.AgentID == agentID && !session.isTimedOut() {
+            session.LastActivity = time.Now()
+            return session, nil
+        }
+    }
+
+    // Create new session
+    session, err := sm.createSession(agentID)
+    if err != nil {
+        return nil, err
+    }
+
+    sm.sessions[session.SessionID] = session
+    return session, nil
+}
+
+func (is *InteractiveSession) SendInput(input string) (string, error) {
+    is.Mutex.Lock()
+    defer is.Mutex.Unlock()
+
+    if is.isTimedOut() {
+        return "", errors.New("session timed out")
+    }
+
+    // Send input to agent
+    if _, err := is.Stdin.Write([]byte(input + "\n")); err != nil {
+        return "", err
+    }
+
+    is.LastActivity = time.Now()
+
+    // Read response from agent
+    reader := bufio.NewReader(is.Stdout)
+    response, err := reader.ReadString('\n')
+    if err != nil {
+        return "", err
+    }
+
+    return strings.TrimSpace(response), nil
+}
+```
+
 ## 🔧 A2A Protocol Integration
 
 ### Protocol Layer Architecture
@@ -338,6 +563,10 @@ type IA2AService interface {
     GetTask(ctx context.Context, taskID string) (*Task, error)
     ListTasks(ctx context.Context, params *ListTasksParams) (*ListTasksResponse, error)
     CancelTask(ctx context.Context, taskID string) (*Task, error)
+    // Interactive mode specific methods
+    OpenSession(ctx context.Context, agentID string) (*Session, error)
+    SendMessageToSession(ctx context.Context, sessionID string, request *MessageSendRequest) (*MessageSendResponse, error)
+    CloseSession(ctx context.Context, sessionID string) error
 }
 
 type MessageSendRequest struct {

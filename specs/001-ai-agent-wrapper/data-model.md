@@ -30,13 +30,16 @@ Represents the settings for a generic CLI AI agent, including execution patterns
 - `WorkingDirectory` (string): Working directory for agent execution (defaults to current directory if not specified)
 - `Envs` (map[string]string): Environment variables to set during agent execution
 - `CliArgs` (map[string]string): Default command-line arguments for agent execution
+- `Mode` (AgentMode): Enum - "task", "interactive" - determines execution behavior (single execution vs persistent session)
 - `InputPattern` (InputPattern): Enum - "stdin", "file", "args", "json-rpc" - how the agent accepts input
 - `OutputPattern` (OutputPattern): Enum - "stdout", "file", "json-rpc" - how the agent returns output
 - `InputFileTemplate` (string): Template for input file when using file input pattern
 - `OutputFileTemplate` (string): Template for output file when using file output pattern
 - `AccessType` (AccessType): Enum value - "read-only" or "read-write"
 - `MaxConcurrentExecutions` (int): Maximum number of concurrent executions allowed (1 for read-write, unlimited for read-only by default)
-- `Timeout` (int): Execution timeout in seconds
+- `Timeout` (int): Execution timeout in seconds (for task mode)
+- `SessionTimeout` (int): Session timeout in seconds (for interactive mode)
+- `KeepAlive` (bool): Whether to maintain process alive between requests (for interactive mode)
 - `Enabled` (bool): Whether the agent is currently enabled for execution
 
 ### Relationships
@@ -163,6 +166,10 @@ Represents the output, status, and metadata from an agent execution, including l
 
 ### Go Type Definition
 **File**: `internal/models/enums.go`
+
+### AgentMode
+- `Task`: Agent runs in task mode - single execution with clear start/end, suitable for batch operations
+- `Interactive`: Agent runs in interactive mode - persistent session allowing multiple exchanges, suitable for ongoing conversations
 
 ### AccessType
 - `ReadOnly`: Agent performs only read operations, allows multiple concurrent executions

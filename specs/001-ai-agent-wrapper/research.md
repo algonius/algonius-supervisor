@@ -256,12 +256,32 @@ This research provides the foundation for implementing robust A2A protocol integ
 ## CLI Agent Lifecycle Management Research
 
 ### Decision: Process-Based Agent Execution with State Management
-**Rationale**: CLI AI agents are external processes that need to be managed through their lifecycle states. Based on the requirements to support multiple agent types (Claude Code, Codex, Gemini CLI) with different execution patterns, a process-based approach with explicit state management provides the most flexibility and reliability.
+**Rationale**: CLI AI agents are external processes that need to be managed through their lifecycle states. Based on the requirements to support multiple agent types (Claude Code, Codex, Gemini CLI) with different execution patterns, a process-based approach with explicit state management provides the most flexibility and reliability. This approach supports both task mode (single execution) and interactive mode (session-based execution).
 
 **Alternatives considered**:
 - **Container-based execution**: Would provide better isolation but adds significant complexity and overhead for CLI tools
 - **In-process execution**: Not feasible since these are external CLI tools
 - **Simple spawn-and-forget**: Lacks the control needed for concurrent execution limits and error handling
+
+## Decision: Task vs Interactive Mode Support
+**Rationale**: CLI AI agents can operate in two distinct modes - task mode for single operations and interactive mode for ongoing conversations. The system must support both patterns to accommodate different agent types and use cases. This requires distinct execution models with appropriate resource management.
+
+**Task Mode**:
+- Single execution with start/end
+- Process terminates after completion
+- Suitable for batch operations
+- Managed through AgentExecution state machine
+
+**Interactive Mode**:
+- Persistent session with multiple exchanges
+- Process remains alive with session timeout
+- Suitable for ongoing conversations
+- Managed through InteractiveSession with timeout controls
+
+**Alternatives considered**:
+- Only supporting task mode: Would limit system capabilities
+- Only supporting interactive mode: Would be inefficient for single operations
+- Generic approach without mode distinctions: Would complicate resource management
 
 ### Decision: State Machine Pattern for Agent Lifecycle
 **Rationale**: A state machine provides clear lifecycle management with defined transitions:
