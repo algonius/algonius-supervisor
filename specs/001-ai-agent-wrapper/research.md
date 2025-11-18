@@ -248,3 +248,202 @@ The system implements path-based routing for multiple agents:
 - **Test Coverage**: High coverage with all tests passing
 
 This research provides the foundation for implementing robust A2A protocol integration using the `github.com/a2aproject/a2a-go` library while maintaining compliance with algonius-supervisor architecture and requirements.
+
+---
+
+# CLI Agent Lifecycle Management Research
+
+## CLI Agent Lifecycle Management Research
+
+### Decision: Process-Based Agent Execution with State Management
+**Rationale**: CLI AI agents are external processes that need to be managed through their lifecycle states. Based on the requirements to support multiple agent types (Claude Code, Codex, Gemini CLI) with different execution patterns, a process-based approach with explicit state management provides the most flexibility and reliability.
+
+**Alternatives considered**:
+- **Container-based execution**: Would provide better isolation but adds significant complexity and overhead for CLI tools
+- **In-process execution**: Not feasible since these are external CLI tools
+- **Simple spawn-and-forget**: Lacks the control needed for concurrent execution limits and error handling
+
+### Decision: State Machine Pattern for Agent Lifecycle
+**Rationale**: A state machine provides clear lifecycle management with defined transitions:
+- `IDLE` → `STARTING` → `RUNNING` → `COMPLETED`/`FAILED` → `CLEANUP` → `IDLE`
+
+This pattern allows for:
+- Proper handling of concurrent execution limits (read-write vs read-only agents)
+- Clean error handling and recovery
+- Resource management and cleanup
+- Execution timeout handling
+
+**Alternatives considered**:
+- **Simple boolean flags**: Too simplistic for complex state transitions
+- **Event-driven approach**: Would add unnecessary complexity for this use case
+
+### Decision: Configuration-Driven Agent Factory Pattern
+**Rationale**: The requirement to support "any command-line AI agent without code changes" necessitates a configuration-driven approach where agents are created based on configuration patterns rather than hardcoded implementations.
+
+Key configuration aspects:
+- Command pattern and arguments
+- Input/output handling patterns
+- Environment variables and working directory
+- Execution timeouts and resource limits
+- Agent type classification (read-write vs read-only)
+
+**Alternatives considered**:
+- **Plugin architecture**: Would require agents to implement specific interfaces
+- **Code generation**: Would require rebuilding for new agent types
+- **Hardcoded agent types**: Doesn't meet the flexibility requirement
+
+### Decision: Separate Execution Services for Different Agent Types
+**Rationale**: The requirement to distinguish between read-write (1 concurrent execution) and read-only (multiple concurrent executions) agents requires different execution strategies:
+
+**Read-Write Agents**:
+- Single execution queue with exclusive access
+- Must wait for previous execution to complete
+- Higher priority for resource allocation
+
+**Read-Only Agents**:
+- Multiple concurrent executions allowed
+- Resource pooling for efficiency
+- Can share execution contexts
+
+**Alternatives considered**:
+- **Single execution service**: Would require complex logic to handle different concurrency rules
+- **Global locking mechanism**: Would be prone to deadlocks and race conditions
+
+### Decision: Structured Logging with Execution Context
+**Rationale**: The requirement for "comprehensive logging" and "MUST NOT store or log sensitive data" requires a structured approach:
+
+- Use zap for structured logging
+- Implement data sanitization before logging
+- Include execution context (agent type, execution ID, timestamps)
+- Separate sensitive data handling from logging
+
+**Alternatives considered**:
+- **Simple text logging**: Doesn't provide the structure needed for analysis
+- **No sanitization**: Would violate the sensitive data requirement
+
+### Decision: Graceful Error Handling with Retry Logic
+**Rationale**: CLI agents can fail for various reasons (network issues, resource constraints, agent errors). A robust error handling strategy includes:
+
+- Categorization of error types (transient vs permanent)
+- Configurable retry logic for transient errors
+- Proper error propagation to callers
+- Resource cleanup on failure
+
+**Alternatives considered**:
+- **Fail-fast approach**: Would not handle transient failures well
+- **Infinite retries**: Could lead to resource exhaustion
+- **No error categorization**: Would treat all errors the same way
+
+### Decision: Resource Management with Timeouts
+**Rationale**: CLI agents may have varying execution times and resource requirements. Proper resource management includes:
+
+- Configurable execution timeouts per agent type
+- Memory and CPU limits where applicable
+- Proper cleanup of temporary files and resources
+- Graceful shutdown handling
+
+**Alternatives considered**:
+- **No timeouts**: Could lead to resource exhaustion from hung processes
+- **Fixed timeouts**: Wouldn't accommodate different agent types
+- **No resource limits**: Could impact system stability
+
+## Implementation Patterns
+
+### Agent Factory Pattern
+The system will use a factory pattern to create agent instances based on configuration:
+
+```go
+type IAgentFactory interface {
+    CreateAgent(config AgentConfig) (IAgent, error)
+    GetAgentTypes() []string
+}
+
+type IAgent interface {
+    Execute(ctx context.Context, input string) (ExecutionResult, error)
+    GetType() string
+    IsReadOnly() bool
+    GetState() AgentState
+}
+```
+
+### State Management
+Agent states will be managed through a state machine with explicit transitions and validation:
+
+```go
+type AgentState string
+
+const (
+    StateIdle       AgentState = "IDLE"
+    StateStarting   AgentState = "STARTING"
+    StateRunning    AgentState = "RUNNING"
+    StateCompleted  AgentState = "COMPLETED"
+    StateFailed     AgentState = "FAILED"
+    StateCleanup    AgentState = "CLEANUP"
+)
+```
+
+### Execution Services
+Separate services for read-write and read-only agents to handle concurrency requirements:
+
+```go
+type IExecutionService interface {
+    ExecuteAgent(ctx context.Context, agent IAgent, input string) (ExecutionResult, error)
+    GetActiveExecutions() []ExecutionInfo
+    CancelExecution(executionID string) error
+}
+
+type ReadWriteExecutionService struct {
+    // Single execution queue
+}
+
+type ReadOnlyExecutionService struct {
+    // Concurrent execution pool
+}
+```
+
+### Configuration Schema
+Agent configuration will support pattern-based execution:
+
+```yaml
+agents:
+  - name: "claude-code"
+    type: "claude-code"
+    command: "claude"
+    args: ["--verbose"]
+    working_dir: "/workspace"
+    env_vars:
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
+    input_pattern: "stdin"
+    output_pattern: "stdout"
+    timeout: 300
+    read_only: false
+    max_concurrent: 1
+```
+
+## Security Considerations
+
+### Sensitive Data Handling
+- Sanitize inputs/outputs before logging
+- Use environment variables for sensitive configuration
+- Implement proper authentication for A2A endpoints
+- Secure storage of execution results (avoid storing sensitive data)
+
+### Resource Isolation
+- Process isolation for agent execution
+- Resource limits (CPU, memory, timeout)
+- Proper cleanup of temporary resources
+- Sandboxing where appropriate
+
+## Monitoring and Observability
+
+### Metrics
+- Execution success/failure rates
+- Execution duration
+- Resource usage
+- Queue lengths for read-write agents
+
+### Logging
+- Structured logging with execution context
+- Error categorization and tracking
+- Performance metrics
+- Resource usage tracking

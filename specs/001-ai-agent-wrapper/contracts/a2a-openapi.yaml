@@ -174,6 +174,164 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /executions:
+    get:
+      summary: List executions
+      description: List all agent executions with optional filtering by agent ID, state, or time range
+      operationId: listExecutions
+      tags:
+        - Execution Management
+      parameters:
+        - name: agentId
+          in: query
+          description: Filter by agent ID
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          description: Filter by execution state
+          required: false
+          schema:
+            type: string
+            enum: [idle, starting, running, completed, failed, timeout, cancelled, cleanup]
+        - name: status
+          in: query
+          description: Filter by execution status (deprecated, use state)
+          required: false
+          schema:
+            type: string
+            enum: [pending, running, completed, failed, cancelled, timeout]
+        - name: limit
+          in: query
+          description: Maximum number of executions to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of executions to skip
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: startTime
+          in: query
+          description: Filter executions started after this time (RFC 3339)
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: endTime
+          in: query
+          description: Filter executions started before this time (RFC 3339)
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Executions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionList'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /executions/{executionId}:
+    get:
+      summary: Get execution details
+      description: Get detailed information about a specific execution including current state and resource usage
+      operationId: getExecution
+      tags:
+        - Execution Management
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          description: ID of the execution
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Execution details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionDetails'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Cancel execution
+      description: Cancel a running execution (if supported by the agent)
+      operationId: cancelExecution
+      tags:
+        - Execution Management
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          description: ID of the execution to cancel
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Execution cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelExecutionResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: Execution cannot be cancelled (not running or agent doesn't support cancellation)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /executions/active:
+    get:
+      summary: List active executions
+      description: List all currently running executions across all agents
+      operationId: listActiveExecutions
+      tags:
+        - Execution Management
+      parameters:
+        - name: agentId
+          in: query
+          description: Filter active executions by agent ID
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Active executions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveExecutionList'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -464,6 +622,208 @@ components:
                 enum: [debug, info, warn, error]
               message:
                 type: string
+
+    ExecutionList:
+      type: object
+      properties:
+        executions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutionSummary'
+        total:
+          type: integer
+          description: Total number of executions matching the filter criteria
+        limit:
+          type: integer
+          description: Maximum number of executions returned in this response
+        offset:
+          type: integer
+          description: Number of executions skipped
+        hasMore:
+          type: boolean
+          description: Whether more executions are available
+
+    ExecutionSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Execution identifier
+        agentId:
+          type: string
+          description: ID of the agent that was executed
+        state:
+          type: string
+          enum: [idle, starting, running, completed, failed, timeout, cancelled, cleanup]
+          description: Current execution state
+        startTime:
+          type: string
+          format: date-time
+          description: Time when execution started
+        endTime:
+          type: string
+          format: date-time
+          description: Time when execution completed (null if still running)
+        duration:
+          type: integer
+          description: Duration in milliseconds (null if still running)
+        retryCount:
+          type: integer
+          description: Number of retry attempts made
+        errorCategory:
+          type: string
+          enum: [transient, permanent, agent_error, system_error]
+          description: Category of error if execution failed
+
+    ExecutionDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Execution identifier
+        agentId:
+          type: string
+          description: ID of the agent that was executed
+        taskId:
+          type: string
+          description: ID of the scheduled task that triggered this execution (if applicable)
+        state:
+          type: string
+          enum: [idle, starting, running, completed, failed, timeout, cancelled, cleanup]
+          description: Current execution state
+        previousState:
+          type: string
+          enum: [idle, starting, running, completed, failed, timeout, cancelled, cleanup]
+          description: Previous execution state
+        startTime:
+          type: string
+          format: date-time
+          description: Time when execution started
+        endTime:
+          type: string
+          format: date-time
+          description: Time when execution completed (null if still running)
+        lastStateChange:
+          type: string
+          format: date-time
+          description: Time of the most recent state change
+        input:
+          type: string
+          description: Input provided to the agent (sanitized)
+        processId:
+          type: integer
+          description: OS process ID of the executed agent (if applicable)
+        exitCode:
+          type: integer
+          description: Process exit code (if applicable)
+        errorMessage:
+          type: string
+          description: Error message if execution failed
+        errorCategory:
+          type: string
+          enum: [transient, permanent, agent_error, system_error]
+          description: Category of error for retry logic
+        retryCount:
+          type: integer
+          description: Number of retry attempts made
+        maxRetries:
+          type: integer
+          description: Maximum number of retry attempts allowed
+        timeout:
+          type: integer
+          description: Execution timeout in seconds
+        resourceUsage:
+          $ref: '#/components/schemas/ResourceUsage'
+        context:
+          type: object
+          description: Additional execution context
+
+    ResourceUsage:
+      type: object
+      properties:
+        cpuPercent:
+          type: number
+          format: float
+          description: CPU usage percentage during execution
+        memoryMB:
+          type: integer
+          description: Memory usage in megabytes
+        peakMemoryMB:
+          type: integer
+          description: Peak memory usage in megabytes
+        diskReadMB:
+          type: integer
+          description: Disk read operations in megabytes
+        diskWriteMB:
+          type: integer
+          description: Disk write operations in megabytes
+
+    CancelExecutionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the cancellation was successful
+        message:
+          type: string
+          description: Additional information about the cancellation
+        finalState:
+          type: string
+          enum: [completed, failed, timeout, cancelled, cleanup]
+          description: Final state of the execution after cancellation
+
+    ActiveExecutionList:
+      type: object
+      properties:
+        executions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActiveExecutionSummary'
+        total:
+          type: integer
+          description: Total number of active executions
+
+    ActiveExecutionSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Execution identifier
+        agentId:
+          type: string
+          description: ID of the agent that is executing
+        agentName:
+          type: string
+          description: Name of the agent that is executing
+        state:
+          type: string
+          enum: [starting, running, cleanup]
+          description: Current execution state (only active states)
+        startTime:
+          type: string
+          format: date-time
+          description: Time when execution started
+        duration:
+          type: integer
+          description: Duration in milliseconds since execution started
+        resourceUsage:
+          $ref: '#/components/schemas/ResourceUsage'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: object
+              description: Additional error details
 
     StreamingResponse:
       type: object

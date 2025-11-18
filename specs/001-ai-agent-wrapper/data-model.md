@@ -80,6 +80,56 @@ Represents an automated task that executes an agent at specified intervals or ti
 - `Name` must be unique across all scheduled tasks
 
 
+## AgentExecution Entity
+
+Represents the lifecycle state and metadata of an active or recent agent execution. This entity tracks the execution state machine and provides real-time execution information.
+
+### Go Type Definition
+**File**: `internal/models/agent_execution.go`
+
+### Fields
+- `ID` (string): Unique identifier for the execution
+- `AgentID` (string): Reference to the agent configuration ID being executed
+- `TaskID` (string): Reference to the scheduled task ID that triggered execution (if applicable)
+- `State` (AgentState): Current state of the execution (Idle, Starting, Running, Completed, Failed, Cleanup)
+- `PreviousState` (AgentState): Previous state for state transition tracking
+- `StartTime` (time.Time): Time when execution started
+- `EndTime` (time.Time): Time when execution completed/failed (nil if still running)
+- `LastStateChange` (time.Time): Time of the most recent state change
+- `Input` (string): Input provided to the agent (sanitized of sensitive data)
+- `ProcessID` (int): OS process ID of the executed agent (if applicable)
+- `ExitCode` (int): Process exit code (if applicable)
+- `ErrorMessage` (string): Error message if execution failed
+- `ErrorCategory` (ErrorCategory): Category of error for retry logic
+- `RetryCount` (int): Number of retry attempts made
+- `MaxRetries` (int): Maximum number of retry attempts allowed
+- `Timeout` (int): Execution timeout in seconds
+- `ResourceUsage` (ResourceUsage): CPU and memory usage information
+- `Context` (map[string]interface{}): Additional execution context
+
+### Relationships
+- Many-to-one with AgentConfiguration (many executions for one agent configuration)
+- Many-to-one with ScheduledTask (many executions for one scheduled task, optional)
+- One-to-one with ExecutionResult (one execution produces one result)
+
+### Validation Rules
+- `State` must be one of the defined AgentState values
+- `State` transitions must follow the valid state machine rules
+- `RetryCount` must be less than or equal to `MaxRetries`
+- Sensitive data must be sanitized from `Input` field
+
+### State Machine Rules
+Valid state transitions:
+- `Idle` → `Starting` (execution begins)
+- `Starting` → `Running` (process started successfully)
+- `Starting` → `Failed` (process failed to start)
+- `Running` → `Completed` (execution succeeded)
+- `Running` → `Failed` (execution failed)
+- `Running` → `Timeout` (execution exceeded timeout)
+- `Running` → `Cancelled` (execution was cancelled)
+- `Completed`/`Failed`/`Timeout`/`Cancelled` → `Cleanup` (cleanup phase)
+- `Cleanup` → `Idle` (cleanup completed, ready for next execution)
+
 ## ExecutionResult Entity
 
 Represents the output, status, and metadata from an agent execution, including logs, return values, and error information.
@@ -135,6 +185,34 @@ Represents the output, status, and metadata from an agent execution, including l
 - `Timeout`: Execution exceeded timeout limit
 - `Cancelled`: Execution was cancelled externally
 
+### AgentState
+- `Idle`: Agent is not currently executing
+- `Starting`: Agent is being initialized for execution
+- `Running`: Agent is currently executing
+- `Completed`: Agent execution completed successfully
+- `Failed`: Agent execution failed
+- `Cleanup`: Agent is being cleaned up after execution
+
+### ErrorCategory
+- `Transient`: Temporary errors that may succeed on retry (network issues, resource constraints)
+- `Permanent`: Errors that will not succeed on retry (invalid configuration, missing dependencies)
+- `AgentError`: Errors specific to the agent implementation
+- `SystemError`: Errors from the algonius-supervisor system
+
+## ResourceUsage Entity
+
+Represents resource usage information for an agent execution.
+
+### Go Type Definition
+**File**: `internal/models/resource_usage.go`
+
+### Fields
+- `CPUPercent` (float64): CPU usage percentage during execution
+- `MemoryMB` (int64): Memory usage in megabytes
+- `PeakMemoryMB` (int64): Peak memory usage in megabytes
+- `DiskReadMB` (int64): Disk read operations in megabytes
+- `DiskWriteMB` (int64): Disk write operations in megabytes
+
 ## Service Interfaces
 
 ### Go Type Definition
@@ -146,6 +224,10 @@ Interface for managing agent configurations and executions:
 - `ExecuteAgentWithParameters(agentID string, input string, parameters map[string]interface{}) (*ExecutionResult, error)`
 - `ExecuteAgentWithOptions(agentID string, input string, parameters map[string]interface{}, workingDir string, envVars map[string]string) (*ExecutionResult, error)`
 - `GetAgentStatus(agentID string) (*AgentStatus, error)`
+- `GetAgentExecution(executionID string) (*AgentExecution, error)`
+- `ListAgentExecutions(agentID string, limit int) ([]*AgentExecution, error)`
+- `ListActiveExecutions() ([]*AgentExecution, error)`
+- `CancelExecution(executionID string) error`
 - `ListAgents() ([]*AgentConfiguration, error)`
 
 ### Go Type Definition
@@ -165,6 +247,34 @@ Interface for managing scheduled tasks:
 Interface that complies with A2A protocol specification:
 - `HandleA2ARequest(request A2ARequest) (*A2AResponse, error)`  // Handles standard A2A protocol requests
 - `GetA2AStatus() (*A2AStatusResponse, error)`  // Returns standard A2A status according to spec
+
+### Go Type Definition
+**File**: `internal/services/execution_service.go`
+
+### IExecutionService Interface
+Interface for managing agent execution lifecycle:
+- `ExecuteAgent(ctx context.Context, agent IAgent, input string) (*AgentExecution, error)`
+- `GetExecution(executionID string) (*AgentExecution, error)`
+- `ListExecutions(agentID string) ([]*AgentExecution, error)`
+- `CancelExecution(executionID string) error`
+- `GetActiveExecutions() ([]*AgentExecution, error)`
+
+### IReadWriteExecutionService Interface
+Specialized interface for read-write agents (single concurrent execution):
+- `IExecutionService` (embedded)
+- `WaitForCompletion(agentID string) error` // Block until current execution completes
+- `GetQueueLength(agentID string) (int, error)` // Get number of waiting executions
+
+### IReadOnlyExecutionService Interface
+Specialized interface for read-only agents (multiple concurrent executions):
+- `IExecutionService` (embedded)
+- `GetResourcePoolMetrics() (*ResourcePoolMetrics, error)` // Get pool utilization metrics
+
+### ExecutionResult Extensions
+The ExecutionResult entity is extended to support lifecycle management:
+- `PreviousRetries` ([]ExecutionResult): References to previous retry attempts
+- `ResourceUsage` (*ResourceUsage): Resource consumption during execution
+- `StateTransitions` ([]StateTransition): Log of all state changes during execution
 
 ### A2A Protocol Types
 Types that align with A2A protocol specification (https://a2a-protocol.org/latest/specification):
@@ -233,6 +343,22 @@ Agent capabilities for A2A protocol:
 - `SupportedContentTypes` ([]string): Supported content types
 
 ## State Transitions
+
+### AgentExecution State Machine
+The AgentExecution entity follows a strict state machine to manage the agent lifecycle:
+
+1. **Idle** → **Starting**: Execution request received, initialization begins
+2. **Starting** → **Running**: Process successfully started
+3. **Starting** → **Failed**: Process failed to start (invalid config, missing dependencies)
+4. **Running** → **Completed**: Execution completed successfully
+5. **Running** → **Failed**: Execution failed with error
+6. **Running** → **Timeout**: Execution exceeded timeout limit
+7. **Running** → **Cancelled**: Execution was cancelled by user/system
+8. **Completed**/**Failed**/**Timeout**/**Cancelled** → **Cleanup**: Cleanup phase begins
+9. **Cleanup** → **Idle**: Cleanup completed, ready for next execution
+
+**Retry Logic**: If error is categorized as Transient and retry count < max retries:
+- **Failed** → **Starting**: Retry attempt initiated
 
 ### ExecutionResult State Transitions
 1. Created (initial state when execution starts)
