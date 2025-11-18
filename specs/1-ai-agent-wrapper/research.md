@@ -44,11 +44,10 @@ Research findings for implementing the AI Agent Wrapper feature including best p
 - Command-line arguments only
 
 ## Decision: Authentication for A2A Endpoints
-**Rationale**: Implement token-based authentication as required by the feature spec, with configurable authentication methods (API keys, JWT, etc.).
+**Rationale**: Implement token-based authentication as required by the feature spec, with authentication handled at the API level rather than in individual agent configurations.
 
 **Alternatives considered**:
 - No authentication (not allowed per spec)
-- OAuth2/OpenID Connect
 - Certificate-based authentication
 
 ## Decision: Scheduled Task Implementation

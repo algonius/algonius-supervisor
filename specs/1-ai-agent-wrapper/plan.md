@@ -90,8 +90,9 @@ internal/
 │   └── agent_factory.go       # Agent factory for creating agents
 ├── config/
 │   └── config.go              # Configuration utilities
-├── auth/
-│   └── auth.go                # Authentication utilities
+├── api/
+│   └── middleware/
+│       └── auth.go            # Authentication middleware
 └── logging/
     └── logger.go              # Logging utilities
 

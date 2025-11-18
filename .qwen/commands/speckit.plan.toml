@@ -1,9 +1,9 @@
-description = "Execute the implementation planning workflow using the plan template to generate design artifacts."
+description = "Execute the planning workflow to generate design artifacts."
 
 prompt = """
 ---
-description: Execute the implementation planning workflow using the plan template to generate design artifacts.
-handoffs: 
+description: Execute the planning workflow to generate design artifacts.
+handoffs:
   - label: Create Tasks
     agent: speckit.tasks
     prompt: Break the plan into tasks
@@ -28,13 +28,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 2. **Load context**: Read FEATURE_SPEC and `.specify/memory/constitution.md`. Load IMPL_PLAN template (already copied).
 
 3. **Execute plan workflow**: Follow the structure in IMPL_PLAN template to:
-   - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
+   - Fill Tech Context (mark unknowns as "NEEDS CLARIFICATION")
    - Fill Constitution Check section from constitution
-   - Evaluate gates (ERROR if violations unjustified)
+   - Check gates (ERROR if violations unjustified)
    - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
    - Phase 1: Generate data-model.md, contracts/, quickstart.md
-   - Phase 1: Update agent context by running the agent script
-   - Re-evaluate Constitution Check post-design
+   - Phase 1: Update context by running the script
+   - Re-check Constitution after design
 
 4. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
 
@@ -42,17 +42,17 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ### Phase 0: Outline & Research
 
-1. **Extract unknowns from Technical Context** above:
+1. **Extract unknowns from Tech Context** above:
    - For each NEEDS CLARIFICATION → research task
    - For each dependency → best practices task
    - For each integration → patterns task
 
-2. **Generate and dispatch research agents**:
+2. **Generate and dispatch research tools**:
 
    ```text
-   For each unknown in Technical Context:
+   For each unknown in Tech Context:
      Task: "Research {unknown} for {feature context}"
-   For each technology choice:
+   For each tech choice:
      Task: "Find best practices for {tech} in {domain}"
    ```
 
@@ -77,14 +77,14 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Use standard REST/GraphQL patterns
    - Output OpenAPI/GraphQL schema to `/contracts/`
 
-3. **Agent context update**:
+3. **Context update**:
    - Run `.specify/scripts/bash/update-agent-context.sh qwen`
-   - These scripts detect which AI agent is in use
-   - Update the appropriate agent-specific context file
-   - Add only new technology from current plan
+   - Scripts detect which AI tool is in use
+   - Update the appropriate context file
+   - Add only new tech from current plan
    - Preserve manual additions between markers
 
-**Output**: data-model.md, /contracts/*, quickstart.md, agent-specific file
+**Output**: data-model.md, /contracts/*, quickstart.md, context file
 
 ## Key rules
 

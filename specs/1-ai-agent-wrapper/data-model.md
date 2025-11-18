@@ -12,7 +12,7 @@ The data models are organized following Go standard practices:
 
 ## AgentConfiguration Entity
 
-Represents the settings for a specific CLI AI agent, including type, parameters, authentication, execution settings, and access type (read-only vs read-write).
+Represents the settings for a specific CLI AI agent, including type, execution settings, and access type (read-only vs read-write).
 
 ### Go Type Definition
 **File**: `internal/models/agent_config.go`
@@ -23,9 +23,8 @@ Represents the settings for a specific CLI AI agent, including type, parameters,
 - `AgentType` (string): Type of agent (e.g., "claude-code", "codex", "gemini-cli")
 - `ExecutablePath` (string): Path to the CLI executable for this agent
 - `WorkingDirectory` (string): Working directory for agent execution (defaults to current directory if not specified)
-- `EnvironmentVariables` (map[string]string): Environment variables to set during agent execution
-- `Parameters` (map[string]string): Default parameters for agent execution
-- `Authentication` (*AuthenticationConfig): Authentication settings for the agent
+- `Envs` (map[string]string): Environment variables to set during agent execution
+- `CliArgs` (map[string]string): Default command-line arguments for agent execution
 - `AccessType` (AccessType): Enum value - "read-only" or "read-write"
 - `MaxConcurrentExecutions` (int): Maximum number of concurrent executions allowed (1 for read-write, unlimited for read-only by default)
 - `Timeout` (int): Execution timeout in seconds
@@ -43,18 +42,6 @@ Represents the settings for a specific CLI AI agent, including type, parameters,
 - `WorkingDirectory` must be a valid directory path if specified
 - `Timeout` must be greater than 0
 
-## AuthenticationConfig Struct
-
-Contains authentication settings for the agent.
-
-### Go Type Definition
-**File**: `internal/models/agent_config.go`
-
-### Fields
-- `Type` (string): Authentication type (e.g., "api-key", "oauth", "none")
-- `APIKey` (string): API key value (if applicable)
-- `CredentialsFile` (string): Path to credentials file (if applicable)
-- `EnvironmentVariable` (string): Name of environment variable containing credentials (if applicable)
 
 ## ScheduledTask Entity
 
@@ -83,31 +70,6 @@ Represents an automated task that executes an agent at specified intervals or ti
 - `AgentID` must reference an existing, enabled agent configuration
 - `Name` must be unique across all scheduled tasks
 
-## A2AEndpoint Entity
-
-Represents the API endpoint that allows external systems to trigger agent execution, including security and access controls.
-
-### Go Type Definition
-**File**: `internal/models/a2a_endpoint.go`
-
-### Fields
-- `ID` (string): Unique identifier for the A2A endpoint
-- `Name` (string): Human-readable name for the endpoint
-- `Path` (string): URL path for the endpoint (e.g., "/api/a2a/claude-code")
-- `Method` (string): HTTP method (typically "POST")
-- `AgentID` (string): Reference to the agent configuration ID to execute
-- `AuthenticationRequired` (bool): Whether authentication is required (must be true per spec)
-- `AllowedIPs` ([]string): List of allowed IP addresses (optional)
-- `RateLimit` (int): Requests per minute limit (0 for unlimited as specified in spec)
-- `Enabled` (bool): Whether the endpoint is currently enabled
-
-### Relationships
-- Many-to-one with AgentConfiguration (many endpoints can reference one agent configuration)
-
-### Validation Rules
-- `Path` must be unique across all A2A endpoints
-- `AuthenticationRequired` must be true (per spec)
-- `AgentID` must reference an existing, enabled agent configuration
 
 ## ExecutionResult Entity
 
@@ -180,11 +142,9 @@ Interface for managing scheduled tasks:
 **File**: `internal/services/a2a_service.go`
 
 ### A2AService Interface
-Interface for A2A endpoint management that complies with A2A protocol specification:
+Interface that complies with A2A protocol specification:
 - `HandleA2ARequest(request A2ARequest) (*A2AResponse, error)`  // Handles standard A2A protocol requests
 - `GetA2AStatus() (*A2AStatusResponse, error)`  // Returns standard A2A status according to spec
-- `RegisterEndpoint(endpoint *A2AEndpoint) error`
-- `DeregisterEndpoint(endpointID string) error`
 
 ### A2A Protocol Types
 Types that align with A2A protocol specification (https://a2a-protocol.org/latest/specification):

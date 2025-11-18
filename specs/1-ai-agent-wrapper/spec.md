@@ -97,7 +97,7 @@ As a user, I want to configure scheduled tasks that automatically execute my CLI
 
 ### Key Entities
 
-- **Agent Configuration**: Represents the settings for a specific CLI AI agent, including type, parameters, authentication, execution settings, and access type (read-only vs read-write)
+- **Agent Configuration**: Represents the settings for a specific CLI AI agent, including type, parameters, execution settings, and access type (read-only vs read-write)
 - **Scheduled Task**: Represents an automated task that executes an agent at specified intervals or times, including timing configuration and execution context
 - **A2A Endpoint**: Represents the API endpoint that allows external systems to trigger agent execution, including security and access controls
 - **Execution Result**: Represents the output, status, and metadata from an agent execution, including logs, return values, and error information

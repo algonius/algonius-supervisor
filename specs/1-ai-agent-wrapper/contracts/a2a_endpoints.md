@@ -17,8 +17,8 @@ All endpoints comply with A2A protocol version 1.0 and use HTTPS for all communi
 ### Base Configuration
 - Base path pattern: `/agents/{agentId}/v1`
 - Content-Type: `application/json` (requests/responses)
-- Authentication: Bearer token via `Authorization` header
-- All endpoints require authentication as per spec
+- Authentication: Bearer token via `Authorization` header (handled at API layer)
+- All endpoints require authentication
 
 ### Multi-Agent Path Prefix Routing
 Following the path prefix routing approach for multi-agent support:
@@ -450,19 +450,12 @@ Status code: 200, no response body
   },
   "capabilities": {
     "pushNotifications": true,
-    "streaming": true,
-    "authentication": {
-      "schemes": ["bearer"]
-    }
+    "streaming": true
   },
   "endpoints": {
     "a2a": "https://your-agent-domain.com/agents/claude-agent/v1"
   },
   "supportedOutputModes": ["text", "json"],
-  "authentication": {
-    "required": true,
-    "schemes": ["bearer"]
-  },
   "supportsAuthenticatedExtendedCard": true,
   "metadata": {
     "agentType": "claude-code",
@@ -524,13 +517,13 @@ Same format as the individual agent card endpoint.
 
 ## Authentication
 
-All A2A endpoints require authentication using the HTTP Authorization header:
+All A2A endpoints require authentication using the HTTP Authorization header, which is handled at the API layer:
 
 ```
 Authorization: Bearer <token>
 ```
 
-Where `<token>` is a valid authentication token as configured in the system.
+Where `<token>` is a valid authentication token as configured at the API level.
 
 ## Error Handling
 

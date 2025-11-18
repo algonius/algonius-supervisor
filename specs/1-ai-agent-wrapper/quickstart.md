@@ -57,14 +57,11 @@ algonius-supervisor/
        agentType: claude-code
        executablePath: claude
        workingDirectory: /path/to/working/directory  # Optional: defaults to current directory
-       environmentVariables:
+       envs:
          CLAUDE_API_KEY: ${CLAUDE_API_KEY}  # Can reference environment variables
          CUSTOM_VAR: "custom value"         # Or set static values
-       parameters:
+       cliArgs:
          model: claude-3-opus
-       authentication:
-         type: api-key
-         environmentVariable: CLAUDE_API_KEY
        accessType: read-write
        timeout: 300
        enabled: true
@@ -74,33 +71,13 @@ algonius-supervisor/
        agentType: gemini-cli
        executablePath: gemini
        workingDirectory: /path/to/gemini/working  # Optional: defaults to current directory
-       environmentVariables:
+       envs:
          GEMINI_API_KEY: ${GEMINI_API_KEY}  # Can reference environment variables
          GOOGLE_CLOUD_PROJECT: "my-project" # Additional project-specific variables
-       parameters:
+       cliArgs:
          model: gemini-pro
-       authentication:
-         type: api-key
-         environmentVariable: GEMINI_API_KEY
        accessType: read-only
        timeout: 300
-       enabled: true
-
-   a2aEndpoints:
-     - id: claude-endpoint
-       name: Claude A2A Endpoint
-       path: /a2a/claude
-       method: POST
-       agentId: claude-agent
-       authenticationRequired: true
-       enabled: true
-
-     - id: gemini-endpoint
-       name: Gemini A2A Endpoint
-       path: /a2a/gemini
-       method: POST
-       agentId: gemini-agent
-       authenticationRequired: true
        enabled: true
 
    scheduledTasks:
@@ -158,7 +135,7 @@ curl -X POST http://localhost:8080/a2a \
         "agentId": "claude-agent",
         "input": "Explain how neural networks work",
         "workingDirectory": "/path/to/working/dir",
-        "environmentVariables": {
+        "envs": {
           "CUSTOM_VAR": "value"
         }
       }
