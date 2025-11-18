@@ -135,7 +135,7 @@ Represents the output, status, and metadata from an agent execution, including l
 ### Go Type Definition
 **File**: `internal/services/agent_service.go`
 
-### AgentService Interface
+### IAgentService Interface
 Interface for managing agent configurations and executions:
 - `ExecuteAgent(agentID string, input string) (*ExecutionResult, error)`
 - `ExecuteAgentWithParameters(agentID string, input string, parameters map[string]interface{}) (*ExecutionResult, error)`
@@ -146,7 +146,7 @@ Interface for managing agent configurations and executions:
 ### Go Type Definition
 **File**: `internal/services/scheduler_service.go`
 
-### SchedulerService Interface
+### ISchedulerService Interface
 Interface for managing scheduled tasks:
 - `ScheduleTask(task *ScheduledTask) error`
 - `UnscheduleTask(taskID string) error`
@@ -156,7 +156,7 @@ Interface for managing scheduled tasks:
 ### Go Type Definition
 **File**: `internal/services/a2a_service.go`
 
-### A2AService Interface
+### IA2AService Interface
 Interface that complies with A2A protocol specification:
 - `HandleA2ARequest(request A2ARequest) (*A2AResponse, error)`  // Handles standard A2A protocol requests
 - `GetA2AStatus() (*A2AStatusResponse, error)`  // Returns standard A2A status according to spec
