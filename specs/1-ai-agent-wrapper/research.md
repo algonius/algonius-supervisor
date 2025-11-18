@@ -3,8 +3,8 @@
 ## Overview
 Research findings for implementing the AI Agent Wrapper feature including best practices for CLI agent wrapping, A2A protocol implementation, and concurrent execution patterns.
 
-## Decision: Agent Wrapping Pattern
-**Rationale**: Implement agent wrapping using an interface-driven approach where each CLI agent implements a common Agent interface. This allows for uniform execution, logging, and management regardless of the underlying CLI agent type.
+## Decision: Generic Agent Adapter Pattern
+**Rationale**: Implement a generic agent adapter that can work with any CLI AI agent based on configuration patterns rather than specific implementations. This allows new agents to be integrated without code changes, just configuration updates. The adapter handles different input/output patterns (stdin/stdout, file-based, JSON-RPC) based on configuration settings.
 
 **Alternatives considered**:
 - Direct process execution without abstraction
@@ -14,10 +14,14 @@ Research findings for implementing the AI Agent Wrapper feature including best p
 ## Decision: Agent Configuration with Working Directory and Environment Variables
 **Rationale**: Include working directory and environment variable configuration in agent configurations to allow agents to run in specific contexts with appropriate environment settings. This is essential for agents that depend on specific file system locations or environment variables.
 
+## Decision: Input/Output Pattern Classification for Generic Agent Support
+**Rationale**: Classify CLI agents by their input/output patterns (stdin/stdout, file-based, command-line args, JSON-RPC) to enable a single generic implementation that can handle any CLI agent based on its pattern. This allows configuration-based integration of new agents without custom code.
+
 **Alternatives considered**:
-- Fixed working directory for all agents
-- System-level environment only
-- No configurable working directory or environment variables
+- Custom implementation for each agent type
+- Plugin system with individual plugins
+- Only supporting stdin/stdout agents
+
 
 ## Decision: A2A Protocol Implementation
 **Rationale**: Use the a2aproject/a2a-go library as specified in the constitution and required by the review comment to ensure compliance with the official A2A protocol specification (https://a2a-protocol.org/latest/specification/#323-httpjsonrest-transport) and provide interoperability with other A2A-compliant systems. The implementation strictly follows the A2A specification rather than custom endpoints.

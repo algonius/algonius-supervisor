@@ -19,7 +19,7 @@
 
 ### User Story 1 - Configure and Execute CLI AI Agents (Priority: P1)
 
-As a user, I want to configure multiple CLI AI agents (like Claude Code, Codex, Gemini CLI) in the algonius-supervisor system so that I can execute them through a unified interface. The system should allow me to specify the agent type, its configuration parameters, and execute it with specific inputs.
+As a user, I want to configure multiple CLI AI agents in the algonius-supervisor system using a pattern-based configuration so that I can execute any command-line AI agent through a unified interface. The system should allow me to specify the agent's input/output patterns and execution parameters without requiring code changes for new agents.
 
 **Why this priority**: This is the core functionality that enables the primary value proposition of wrapping multiple CLI AI agents in a unified system.
 
@@ -80,7 +80,7 @@ As a user, I want to configure scheduled tasks that automatically execute my CLI
 
 ### Functional Requirements
 
-- **FR-001**: System MUST support configuration of multiple CLI AI agents (Claude Code, Codex, Gemini CLI, and other similar agents)
+- **FR-001**: System MUST support configuration of multiple CLI AI agents through a generic configuration schema that works with any command-line AI agent without code changes
 - **FR-002**: System MUST provide A2A endpoints that allow external systems to trigger agent execution programmatically
 - **FR-003**: Users MUST be able to configure scheduled tasks that automatically execute agents at specified intervals or times
 - **FR-004**: System MUST capture and return the output from executed CLI AI agents to the caller

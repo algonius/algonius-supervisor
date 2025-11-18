@@ -54,8 +54,10 @@ algonius-supervisor/
    agents:
      - id: claude-agent
        name: Claude Code Agent
-       agentType: claude-code
+       agentType: stdin-stdout  # Generic type based on input/output pattern
        executablePath: claude
+       inputPattern: stdin      # Input via stdin
+       outputPattern: stdout    # Output via stdout
        workingDirectory: /path/to/working/directory  # Optional: defaults to current directory
        envs:
          CLAUDE_API_KEY: ${CLAUDE_API_KEY}  # Can reference environment variables
@@ -68,8 +70,10 @@ algonius-supervisor/
 
      - id: gemini-agent
        name: Gemini CLI Agent
-       agentType: gemini-cli
+       agentType: stdin-stdout  # Generic type based on input/output pattern
        executablePath: gemini
+       inputPattern: stdin      # Input via stdin
+       outputPattern: stdout    # Output via stdout
        workingDirectory: /path/to/gemini/working  # Optional: defaults to current directory
        envs:
          GEMINI_API_KEY: ${GEMINI_API_KEY}  # Can reference environment variables
@@ -78,6 +82,38 @@ algonius-supervisor/
          model: gemini-pro
        accessType: read-only
        timeout: 300
+       enabled: true
+
+     - id: ollama-agent
+       name: Ollama Agent
+       agentType: stdin-stdout  # Generic type based on input/output pattern
+       executablePath: ollama
+       inputPattern: stdin      # Input via stdin
+       outputPattern: stdout    # Output via stdout
+       workingDirectory: /path/to/ollama/working  # Optional: defaults to current directory
+       envs:
+         OLLAMA_HOST: "http://localhost:11434"
+       cliArgs:
+         model: llama3
+       accessType: read-only
+       timeout: 300
+       enabled: true
+
+     - id: custom-file-agent
+       name: Custom File-Based Agent
+       agentType: file-input-output  # Generic type based on input/output pattern
+       executablePath: custom-processor
+       inputPattern: file           # Input via file
+       outputPattern: file          # Output via file
+       inputFileTemplate: "input_{{timestamp}}.txt"  # Template for input file
+       outputFileTemplate: "output_{{timestamp}}.txt"  # Template for output file
+       workingDirectory: /path/to/custom/working
+       envs:
+         CUSTOM_API_KEY: ${CUSTOM_API_KEY}
+       cliArgs:
+         format: json
+       accessType: read-only
+       timeout: 600
        enabled: true
 
    scheduledTasks:

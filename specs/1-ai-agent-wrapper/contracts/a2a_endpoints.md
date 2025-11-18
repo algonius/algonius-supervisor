@@ -660,6 +660,7 @@ resp, err := client.SendMessage(ctx, &a2a.MessageSendParams{Message: msg})
 
 ### Agent Integration Layer
 - **internal/agents/agent_interface.go**: Interface for CLI AI agents
+- **internal/agents/generic_agent.go**: Generic agent implementation that works with any CLI tool based on configuration
 - **internal/agents/agent_service.go**: Agent execution service with multi-agent support
-- **internal/agents/agent_factory.go**: Factory for creating and managing different agent types
-- **internal/agents/types.go**: Agent-specific types and configurations
+- **internal/agents/agent_patterns.go**: Pattern-specific handlers for different input/output patterns (stdin/stdout, file-based, etc.)
+- **internal/agents/types.go**: Generic agent types and configurations

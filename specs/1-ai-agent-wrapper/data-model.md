@@ -12,7 +12,7 @@ The data models are organized following Go standard practices:
 
 ## AgentConfiguration Entity
 
-Represents the settings for a specific CLI AI agent, including type, execution settings, and access type (read-only vs read-write).
+Represents the settings for a generic CLI AI agent, including execution patterns, input/output handling, and access type (read-only vs read-write).
 
 ### Go Type Definition
 **File**: `internal/models/agent_config.go`
@@ -20,11 +20,15 @@ Represents the settings for a specific CLI AI agent, including type, execution s
 ### Fields
 - `ID` (string): Unique identifier for the agent configuration
 - `Name` (string): Human-readable name for the agent
-- `AgentType` (string): Type of agent (e.g., "claude-code", "codex", "gemini-cli")
+- `AgentType` (string): Type of agent based on input/output pattern (e.g., "stdin-stdout", "file-input", "json-rpc")
 - `ExecutablePath` (string): Path to the CLI executable for this agent
 - `WorkingDirectory` (string): Working directory for agent execution (defaults to current directory if not specified)
 - `Envs` (map[string]string): Environment variables to set during agent execution
 - `CliArgs` (map[string]string): Default command-line arguments for agent execution
+- `InputPattern` (InputPattern): Enum - "stdin", "file", "args", "json-rpc" - how the agent accepts input
+- `OutputPattern` (OutputPattern): Enum - "stdout", "file", "json-rpc" - how the agent returns output
+- `InputFileTemplate` (string): Template for input file when using file input pattern
+- `OutputFileTemplate` (string): Template for output file when using file output pattern
 - `AccessType` (AccessType): Enum value - "read-only" or "read-write"
 - `MaxConcurrentExecutions` (int): Maximum number of concurrent executions allowed (1 for read-write, unlimited for read-only by default)
 - `Timeout` (int): Execution timeout in seconds
@@ -108,6 +112,17 @@ Represents the output, status, and metadata from an agent execution, including l
 ### AccessType
 - `ReadOnly`: Agent performs only read operations, allows multiple concurrent executions
 - `ReadWrite`: Agent performs read and write operations, allows only 1 concurrent execution
+
+### InputPattern
+- `Stdin`: Agent accepts input via stdin
+- `File`: Agent accepts input via file path arguments
+- `Args`: Agent accepts input via command-line arguments
+- `JsonRpc`: Agent accepts input via JSON-RPC over stdin/stdout
+
+### OutputPattern
+- `Stdout`: Agent returns output via stdout
+- `File`: Agent returns output via file path
+- `JsonRpc`: Agent returns output via JSON-RPC over stdin/stdout
 
 ### ExecutionStatus
 - `Success`: Execution completed successfully

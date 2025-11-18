@@ -84,10 +84,9 @@ internal/
 │       └── a2a_handlers.go     # A2A endpoint handlers
 ├── agents/
 │   ├── agent_interface.go     # Agent interface definition
-│   ├── claude_agent.go        # Claude Code agent implementation
-│   ├── codex_agent.go         # Codex agent implementation
-│   ├── gemini_agent.go        # Gemini CLI agent implementation
-│   └── agent_factory.go       # Agent factory for creating agents
+│   ├── generic_agent.go       # Generic agent implementation based on configuration patterns
+│   ├── agent_patterns.go      # Pattern-specific handlers for different input/output patterns
+│   └── agent_factory.go       # Agent factory for creating agents from configuration
 ├── config/
 │   └── config.go              # Configuration utilities
 ├── api/
