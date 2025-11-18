@@ -1,7 +1,12 @@
 # Data Model: AI Agent Wrapper
 
+**Date**: 2025-11-18
+**Feature**: AI Agent Wrapper
+**Branch**: 001-ai-agent-wrapper
+
 ## Overview
-Entity definitions for the AI Agent Wrapper feature based on the key entities identified in the feature specification.
+
+This document defines the data model entities for the AI Agent Wrapper feature, including agent configurations, scheduled tasks, A2A endpoints, and execution results. The model supports the generic pattern-based approach for wrapping any CLI AI agent and integrates with the A2A protocol specification.
 
 ## Go Package Structure
 The data models are organized following Go standard practices:
@@ -166,11 +171,11 @@ Types that align with A2A protocol specification (https://a2a-protocol.org/lates
 
 #### A2AMessage
 **File**: `pkg/a2a/protocol.go`
-Base message structure as defined in A2A spec:
+Base message structure as defined in A2A spec v0.3.0:
 - `Protocol` (string): Protocol identifier, MUST be "a2a"
-- `Version` (string): Protocol version (e.g., "1.0")
-- `ID` (string): Unique message identifier
-- `Type` (string): Message type ("request" or "response")
+- `Version` (string): Protocol version (e.g., "0.3.0")
+- `ID` (string): Unique message identifier (UUID v4 recommended)
+- `Type` (string): Message type ("request", "response", "error", "stream")
 - `Timestamp` (time.Time): Message timestamp in RFC 3339 format
 - `InResponseTo` (string): ID of the message this is a response to (for responses only)
 
@@ -180,6 +185,7 @@ Context structure as defined in A2A spec:
 - `From` (string): Source agent identifier
 - `To` (string): Target agent identifier
 - `ConversationID` (string): Conversation identifier
+- `MessageID` (string): Message identifier for correlation
 
 #### A2APayload
 **File**: `pkg/a2a/protocol.go`
@@ -187,6 +193,44 @@ Payload structure as defined in A2A spec:
 - `Method` (string): The method to execute (e.g., "execute-agent", "status") for requests
 - `Params` (map[string]interface{}): Method parameters for requests
 - `Result` (interface{}): Result of method execution for responses
+- `Error` (A2AError): Error information for error responses
+
+#### A2AError
+**File**: `pkg/a2a/errors.go`
+Error structure following JSON-RPC 2.0 and A2A spec:
+- `Code` (int): Error code (-32700 to -32005 for standard errors, -32001 to -32005 for A2A-specific)
+- `Message` (string): Human-readable error message
+- `Data` (interface{}): Additional error data (optional)
+
+### A2A-Specific Data Models
+
+#### A2AEndpoint Configuration
+**File**: `internal/models/a2a_endpoint.go`
+Extended A2A endpoint configuration:
+- `AgentID` (string): Reference to AgentConfiguration
+- `BasePath` (string): Base path for A2A endpoints (e.g., "/agents/{agentId}/v1")
+- `TransportProtocols` ([]string): Supported protocols ["http_json", "grpc", "json_rpc"]
+- `Authentication` (A2AAuth): Authentication configuration
+- `RateLimiting` (A2ARateLimit): Rate limiting configuration
+- `Capabilities` (A2ACapabilities): Agent capabilities advertisement
+
+#### A2AAuth
+**File**: `internal/models/a2a_auth.go`
+Authentication configuration:
+- `Type` (string): "bearer_token", "api_key", "none"
+- `Token` (string): Authentication token (from environment variable)
+- `HeaderName` (string): HTTP header name for token
+- `Required` (bool): Whether authentication is required
+
+#### A2ACapabilities
+**File**: `internal/models/a2a_capabilities.go`
+Agent capabilities for A2A protocol:
+- `SupportedMethods` ([]string): Methods this agent supports
+- `MaxInputSize` (int64): Maximum input size in bytes
+- `MaxOutputSize` (int64): Maximum output size in bytes
+- `StreamingSupport` (bool): Whether streaming is supported
+- `ConcurrentExecution` (bool): Whether concurrent execution is supported
+- `SupportedContentTypes` ([]string): Supported content types
 
 ## State Transitions
 

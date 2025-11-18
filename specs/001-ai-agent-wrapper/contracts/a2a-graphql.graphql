@@ -1,0 +1,498 @@
+# A2A Protocol GraphQL Schema
+# Version: 0.3.0
+# Supports agent-to-agent communication and task management
+
+scalar DateTime
+scalar JSON
+
+enum AccessType {
+  READ_ONLY
+  READ_WRITE
+}
+
+enum InputOutputPattern {
+  STDIN_STDOUT
+  FILE_BASED
+  COMMAND_ARGS
+  JSON_RPC
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMEOUT
+}
+
+enum MessageType {
+  REQUEST
+  RESPONSE
+  ERROR
+  STREAM
+}
+
+enum TransportProtocol {
+  HTTP_JSON
+  GRPC
+  JSON_RPC
+}
+
+enum LogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+}
+
+# A2A Protocol Message - Core entity for agent communication
+type A2AMessage {
+  protocol: String!
+  version: String!
+  id: ID!
+  type: MessageType!
+  timestamp: DateTime!
+  inResponseTo: ID
+  context: A2AContext!
+  payload: A2APayload!
+}
+
+# A2A Message Context
+type A2AContext {
+  from: String!
+  to: String!
+  conversationId: String
+  messageId: String
+}
+
+# A2A Message Payload
+type A2APayload {
+  method: String
+  params: JSON
+  result: JSON
+  error: A2AError
+}
+
+# A2A Error following JSON-RPC 2.0 specification
+type A2AError {
+  code: Int!
+  message: String!
+  data: JSON
+}
+
+# Agent Card for discovery
+type AgentCard {
+  agentId: ID!
+  name: String!
+  version: String!
+  description: String
+  author: String
+  capabilities: AgentCapabilities!
+  endpoints: [AgentEndpoint!]!
+  authentication: AgentAuthentication!
+}
+
+# Agent Capabilities
+type AgentCapabilities {
+  supportedMethods: [String!]!
+  maxInputSize: Int64
+  maxOutputSize: Int64
+  streamingSupport: Boolean!
+  concurrentExecution: Boolean!
+  supportedContentTypes: [String!]!
+}
+
+# Agent Endpoint
+type AgentEndpoint {
+  protocol: TransportProtocol!
+  url: String!
+}
+
+# Agent Authentication
+type AgentAuthentication {
+  required: Boolean!
+  methods: [String!]!
+}
+
+# Agent Configuration
+type AgentConfiguration {
+  id: ID!
+  name: String!
+  type: String!
+  command: String!
+  workingDirectory: String
+  environmentVariables: JSON
+  parameters: JSON
+  inputOutputPattern: InputOutputPattern!
+  accessType: AccessType!
+  timeout: Int!
+  maxConcurrentExecutions: Int!
+  a2aEndpoint: A2AEndpointConfiguration
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # Relationships
+  scheduledTasks: [ScheduledTask!]!
+  executionResults: [ExecutionResult!]!
+}
+
+# A2A Endpoint Configuration
+type A2AEndpointConfiguration {
+  enabled: Boolean!
+  path: String!
+  authenticationRequired: Boolean!
+  authenticationToken: String
+  supportedTransports: [TransportProtocol!]!
+  rateLimitingEnabled: Boolean!
+  maxRequestsPerMinute: Int
+}
+
+# Scheduled Task
+type ScheduledTask {
+  id: ID!
+  name: String!
+  agent: AgentConfiguration!
+  schedule: String!
+  enabled: Boolean!
+  executionContext: JSON
+  lastExecution: DateTime
+  nextExecution: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # Relationships
+  executionHistory: [ExecutionResult!]!
+}
+
+# Execution Result
+type ExecutionResult {
+  id: ID!
+  agent: AgentConfiguration!
+  task: ScheduledTask
+  status: ExecutionStatus!
+  input: String!
+  output: String!
+  error: String
+  exitCode: Int
+  startTime: DateTime!
+  endTime: DateTime
+  duration: Int
+  logs: [LogEntry!]!
+  metadata: JSON
+}
+
+# Log Entry
+type LogEntry {
+  timestamp: DateTime!
+  level: LogLevel!
+  message: String!
+  metadata: JSON
+}
+
+# Task Summary for list operations
+type TaskSummary {
+  id: ID!
+  status: ExecutionStatus!
+  startTime: DateTime
+  endTime: DateTime
+  duration: Int
+}
+
+# Pagination Info
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+# Connection types for pagination
+type AgentConfigurationConnection {
+  edges: [AgentConfigurationEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type AgentConfigurationEdge {
+  node: AgentConfiguration!
+  cursor: String!
+}
+
+type ExecutionResultConnection {
+  edges: [ExecutionResultEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type ExecutionResultEdge {
+  node: ExecutionResult!
+  cursor: String!
+}
+
+# Input Types
+
+input A2AMessageInput {
+  protocol: String! = "a2a"
+  version: String! = "0.3.0"
+  id: ID
+  type: MessageType!
+  timestamp: DateTime
+  inResponseTo: ID
+  context: A2AContextInput!
+  payload: A2APayloadInput!
+}
+
+input A2AContextInput {
+  from: String!
+  to: String!
+  conversationId: String
+  messageId: String
+}
+
+input A2APayloadInput {
+  method: String
+  params: JSON
+  result: JSON
+  error: A2AErrorInput
+}
+
+input A2AErrorInput {
+  code: Int!
+  message: String!
+  data: JSON
+}
+
+input AgentConfigurationInput {
+  name: String!
+  type: String!
+  command: String!
+  workingDirectory: String
+  environmentVariables: JSON
+  parameters: JSON
+  inputOutputPattern: InputOutputPattern!
+  accessType: AccessType!
+  timeout: Int = 300
+  maxConcurrentExecutions: Int = 1
+  a2aEndpoint: A2AEndpointConfigurationInput
+}
+
+input A2AEndpointConfigurationInput {
+  enabled: Boolean! = true
+  path: String!
+  authenticationRequired: Boolean! = true
+  authenticationToken: String
+  supportedTransports: [TransportProtocol!]! = [HTTP_JSON]
+  rateLimitingEnabled: Boolean! = false
+  maxRequestsPerMinute: Int
+}
+
+input ScheduledTaskInput {
+  name: String!
+  agentId: ID!
+  schedule: String!
+  enabled: Boolean! = true
+  executionContext: JSON
+}
+
+# Queries
+
+type Query {
+  # A2A Protocol Queries
+  agentCard(agentId: ID!): AgentCard!
+
+  # Agent Configuration Queries
+  agentConfiguration(id: ID!): AgentConfiguration
+  agentConfigurations(
+    first: Int = 20
+    after: String
+    last: Int
+    before: String
+    type: String
+    accessType: AccessType
+    enabled: Boolean
+  ): AgentConfigurationConnection!
+
+  # Task Queries
+  task(id: ID!): ExecutionResult
+  tasks(
+    first: Int = 20
+    after: String
+    last: Int
+    before: String
+    agentId: ID
+    status: ExecutionStatus
+    startTime: DateTime
+    endTime: DateTime
+  ): ExecutionResultConnection!
+
+  # Scheduled Task Queries
+  scheduledTask(id: ID!): ScheduledTask
+  scheduledTasks(
+    agentId: ID
+    enabled: Boolean
+  ): [ScheduledTask!]!
+}
+
+# Mutations
+
+type Mutation {
+  # A2A Protocol Mutations
+  sendA2AMessage(message: A2AMessageInput!): A2AMessage!
+  sendStreamingA2AMessage(message: A2AMessageInput!): A2AMessage!
+
+  # Agent Configuration Mutations
+  createAgentConfiguration(input: AgentConfigurationInput!): AgentConfiguration!
+  updateAgentConfiguration(id: ID!, input: AgentConfigurationInput!): AgentConfiguration!
+  deleteAgentConfiguration(id: ID!): Boolean!
+  enableAgentConfiguration(id: ID!): AgentConfiguration!
+  disableAgentConfiguration(id: ID!): AgentConfiguration!
+
+  # Agent Execution Mutations
+  executeAgent(
+    agentId: ID!
+    input: String!
+    parameters: JSON
+    workingDirectory: String
+    environmentVariables: JSON
+  ): ExecutionResult!
+
+  cancelExecution(executionId: ID!): ExecutionResult!
+
+  # Scheduled Task Mutations
+  createScheduledTask(input: ScheduledTaskInput!): ScheduledTask!
+  updateScheduledTask(id: ID!, input: ScheduledTaskInput!): ScheduledTask!
+  deleteScheduledTask(id: ID!): Boolean!
+  enableScheduledTask(id: ID!): ScheduledTask!
+  disableScheduledTask(id: ID!): ScheduledTask!
+  executeScheduledTask(id: ID!): ExecutionResult!
+}
+
+# Subscriptions
+
+type Subscription {
+  # A2A Protocol Subscriptions
+  a2aMessageStream(agentId: ID!): A2AMessage!
+
+  # Execution Subscriptions
+  executionUpdates(agentId: ID): ExecutionResult!
+  executionLogs(executionId: ID!): LogEntry!
+
+  # Task Subscriptions
+  scheduledTaskUpdates(agentId: ID): ScheduledTask!
+}
+
+# Direct A2A Protocol Methods
+extend type Mutation {
+  # Standard A2A Protocol Methods
+  executeAgentA2A(
+    agentId: ID!
+    command: String!
+    context: JSON
+    options: JSON
+  ): A2AMessage!
+
+  getAgentStatusA2A(agentId: ID!): A2AMessage!
+
+  listAgentCapabilitiesA2A(agentId: ID!): A2AMessage!
+
+  # Streaming Methods
+  executeAgentStreamA2A(
+    agentId: ID!
+    command: String!
+    context: JSON
+    options: JSON
+  ): A2AMessage!
+}
+
+# Error Types
+
+type A2AProtocolError implements Error {
+  code: Int!
+  message: String!
+  data: JSON
+  agentId: ID
+  conversationId: String
+}
+
+type AgentNotFoundError implements Error {
+  agentId: ID!
+  message: String!
+}
+
+type ExecutionLimitExceededError implements Error {
+  agentId: ID!
+  currentExecutions: Int!
+  maxExecutions: Int!
+  message: String!
+}
+
+type AuthenticationRequiredError implements Error {
+  agentId: ID
+  requiredMethods: [String!]!
+  message: String!
+}
+
+# Union types for error handling
+union AgentError = A2AProtocolError | AgentNotFoundError | ExecutionLimitExceededError | AuthenticationRequiredError
+
+# Example Queries
+
+# Get agent card for discovery
+query GetAgentCard($agentId: ID!) {
+  agentCard(agentId: $agentId) {
+    agentId
+    name
+    version
+    capabilities {
+      supportedMethods
+      streamingSupport
+      concurrentExecution
+    }
+    endpoints {
+      protocol
+      url
+    }
+  }
+}
+
+# Send A2A message
+mutation SendA2AMessage($message: A2AMessageInput!) {
+  sendA2AMessage(message: $message) {
+    id
+    type
+    timestamp
+    payload {
+      result
+      error {
+        code
+        message
+      }
+    }
+  }
+}
+
+# Subscribe to execution updates
+subscription ExecutionUpdates($agentId: ID) {
+  executionUpdates(agentId: $agentId) {
+    id
+    status
+    output
+    error
+    startTime
+    endTime
+  }
+}
+
+# Stream A2A messages
+subscription A2AMessageStream($agentId: ID!) {
+  a2aMessageStream(agentId: $agentId) {
+    id
+    type
+    payload {
+      result
+      method
+      params
+    }
+  }
+}

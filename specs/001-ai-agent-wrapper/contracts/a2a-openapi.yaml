@@ -1,0 +1,586 @@
+openapi: 3.0.3
+info:
+  title: A2A Protocol API
+  description: A2A Protocol v0.3.0 implementation for algonius-supervisor
+  version: 0.3.0
+  contact:
+    name: algonius-supervisor Team
+    url: https://github.com/algonius/algonius-supervisor
+
+servers:
+  - url: https://api.algonius.local/agents/{agentId}/v1
+    description: A2A Protocol endpoint for specific agent
+    variables:
+      agentId:
+        default: default-agent
+        description: ID of the agent to communicate with
+
+security:
+  - bearerAuth: []
+
+paths:
+  /.well-known/agent-card.json:
+    get:
+      summary: Get agent card
+      description: Returns the agent card with capabilities and metadata according to A2A specification
+      operationId: getAgentCard
+      tags:
+        - Discovery
+      responses:
+        '200':
+          description: Agent card retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentCard'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /message:send:
+    post:
+      summary: Send message to agent
+      description: Send a message to the agent for processing
+      operationId: sendMessage
+      tags:
+        - Messaging
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/A2AMessage'
+      responses:
+        '200':
+          description: Message processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/A2AMessage'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /message:stream:
+    post:
+      summary: Send streaming message to agent
+      description: Send a message to the agent and receive streaming responses
+      operationId: sendStreamingMessage
+      tags:
+        - Messaging
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/A2AMessage'
+      responses:
+        '200':
+          description: Streaming response initiated
+          content:
+            application/x-ndjson:
+              schema:
+                $ref: '#/components/schemas/StreamingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks:
+    get:
+      summary: List tasks
+      description: List all tasks for this agent
+      operationId: listTasks
+      tags:
+        - Tasks
+      parameters:
+        - name: status
+          in: query
+          description: Filter by task status
+          required: false
+          schema:
+            type: string
+            enum: [pending, running, completed, failed, cancelled, timeout]
+        - name: limit
+          in: query
+          description: Maximum number of tasks to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of tasks to skip
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Tasks retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskList'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks/{taskId}:
+    get:
+      summary: Get task details
+      description: Get detailed information about a specific task
+      operationId: getTask
+      tags:
+        - Tasks
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: ID of the task
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDetails'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Bearer token authentication for A2A endpoints
+
+  schemas:
+    A2AMessage:
+      type: object
+      description: A2A protocol message following v0.3.0 specification
+      required:
+        - protocol
+        - version
+        - id
+        - type
+        - timestamp
+        - context
+        - payload
+      properties:
+        protocol:
+          type: string
+          description: Protocol identifier
+          enum: [a2a]
+          example: a2a
+        version:
+          type: string
+          description: Protocol version
+          example: "0.3.0"
+        id:
+          type: string
+          description: Unique message identifier
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        type:
+          type: string
+          description: Message type
+          enum: [request, response, error, stream]
+          example: request
+        timestamp:
+          type: string
+          format: date-time
+          description: Message timestamp in RFC 3339 format
+          example: "2025-11-18T10:30:00Z"
+        inResponseTo:
+          type: string
+          description: ID of the message this is a response to (for responses only)
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        context:
+          $ref: '#/components/schemas/A2AContext'
+        payload:
+          $ref: '#/components/schemas/A2APayload'
+
+    A2AContext:
+      type: object
+      description: A2A message context
+      required:
+        - from
+        - to
+      properties:
+        from:
+          type: string
+          description: Source agent identifier
+          example: "agent-123"
+        to:
+          type: string
+          description: Target agent identifier
+          example: "claude-code-agent-1"
+        conversationId:
+          type: string
+          description: Conversation identifier for message correlation
+          example: "conv-456"
+        messageId:
+          type: string
+          description: Message identifier for correlation
+          example: "msg-789"
+
+    A2APayload:
+      type: object
+      description: A2A message payload
+      properties:
+        method:
+          type: string
+          description: Method name for requests
+          example: "execute-agent"
+        params:
+          type: object
+          description: Method parameters for requests
+          additionalProperties: true
+          example:
+            command: "review code"
+            context: "security review"
+        result:
+          description: Result of method execution for responses
+          oneOf:
+            - type: object
+            - type: array
+            - type: string
+            - type: number
+            - type: boolean
+        error:
+          $ref: '#/components/schemas/A2AError'
+
+    A2AError:
+      type: object
+      description: A2A error following JSON-RPC 2.0 specification
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+          example: -32602
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Invalid params"
+        data:
+          description: Additional error data
+          oneOf:
+            - type: object
+            - type: array
+            - type: string
+
+    AgentCard:
+      type: object
+      description: Agent discovery card following A2A specification
+      required:
+        - agentId
+        - name
+        - version
+        - capabilities
+        - endpoints
+      properties:
+        agentId:
+          type: string
+          description: Unique agent identifier
+          example: "claude-code-agent-1"
+        name:
+          type: string
+          description: Human-readable agent name
+          example: "Claude Code Agent"
+        version:
+          type: string
+          description: Agent version
+          example: "1.0.0"
+        description:
+          type: string
+          description: Agent description
+          example: "AI coding assistant powered by Claude"
+        author:
+          type: string
+          description: Agent author/organization
+          example: "Anthropic"
+        capabilities:
+          type: object
+          description: Agent capabilities
+          properties:
+            supportedMethods:
+              type: array
+              items:
+                type: string
+              example: ["execute-agent", "status", "list-capabilities"]
+            maxInputSize:
+              type: integer
+              description: Maximum input size in bytes
+              example: 1048576
+            maxOutputSize:
+              type: integer
+              description: Maximum output size in bytes
+              example: 1048576
+            streamingSupport:
+              type: boolean
+              description: Whether streaming is supported
+              example: true
+            concurrentExecution:
+              type: boolean
+              description: Whether concurrent execution is supported
+              example: false
+            supportedContentTypes:
+              type: array
+              items:
+                type: string
+              example: ["text/plain", "application/json"]
+        endpoints:
+          type: array
+          items:
+            type: object
+            properties:
+              protocol:
+                type: string
+                enum: [http_json, grpc, json_rpc]
+              url:
+                type: string
+                format: uri
+                example: "https://api.algonius.local/agents/claude-code-agent-1/v1"
+        authentication:
+          type: object
+          properties:
+            required:
+              type: boolean
+              example: true
+            methods:
+              type: array
+              items:
+                type: string
+                enum: [bearer_token, api_key]
+
+    TaskList:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskSummary'
+        total:
+          type: integer
+          description: Total number of tasks
+        limit:
+          type: integer
+          description: Maximum number of tasks returned
+        offset:
+          type: integer
+          description: Number of tasks skipped
+
+    TaskSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Task identifier
+        status:
+          type: string
+          enum: [pending, running, completed, failed, cancelled, timeout]
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        duration:
+          type: integer
+          description: Duration in milliseconds
+
+    TaskDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Task identifier
+        status:
+          type: string
+          enum: [pending, running, completed, failed, cancelled, timeout]
+        input:
+          type: string
+          description: Input provided to the agent (sanitized)
+        output:
+          type: string
+          description: Output from the agent (sanitized)
+        error:
+          type: string
+          description: Error message if execution failed
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        duration:
+          type: integer
+          description: Duration in milliseconds
+        exitCode:
+          type: integer
+          description: Process exit code
+        logs:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              level:
+                type: string
+                enum: [debug, info, warn, error]
+              message:
+                type: string
+
+    StreamingResponse:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Response type
+          example: "chunk"
+        data:
+          type: string
+          description: Response data chunk
+        finished:
+          type: boolean
+          description: Whether this is the final chunk
+
+  responses:
+    BadRequestError:
+      description: Bad request - invalid input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/A2AError'
+          example:
+            code: -32602
+            message: "Invalid params"
+            data:
+              field: "method"
+              reason: "Method not found"
+
+    UnauthorizedError:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/A2AError'
+          example:
+            code: -32003
+            message: "Authentication required"
+            data:
+              required: "Bearer token"
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/A2AError'
+          example:
+            code: -32001
+            message: "Agent not found"
+            data:
+              agentId: "unknown-agent"
+
+    RateLimitError:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/A2AError'
+          example:
+            code: -32004
+            message: "Rate limit exceeded"
+            data:
+              limit: 100
+              window: "1m"
+              retryAfter: "30s"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/A2AError'
+          example:
+            code: -32603
+            message: "Internal error"
+            data:
+              requestId: "req-123"
+
+  examples:
+    ExecuteAgentRequest:
+      summary: Execute agent request
+      value:
+        protocol: a2a
+        version: "0.3.0"
+        id: "550e8400-e29b-41d4-a716-446655440000"
+        type: request
+        timestamp: "2025-11-18T10:30:00Z"
+        context:
+          from: "agent-123"
+          to: "claude-code-agent-1"
+          conversationId: "conv-456"
+        payload:
+          method: execute-agent
+          params:
+            command: "review code"
+            context: "security review"
+            options:
+              maxTokens: 4096
+              temperature: 0.7
+
+    ExecuteAgentResponse:
+      summary: Execute agent response
+      value:
+        protocol: a2a
+        version: "0.3.0"
+        id: "660e8400-e29b-41d4-a716-446655440001"
+        type: response
+        timestamp: "2025-11-18T10:30:05Z"
+        inResponseTo: "550e8400-e29b-41d4-a716-446655440000"
+        context:
+          from: "claude-code-agent-1"
+          to: "agent-123"
+          conversationId: "conv-456"
+        payload:
+          result:
+            status: completed
+            output: "Code review completed. No security issues found."
+            executionTime: 5234
+            exitCode: 0
