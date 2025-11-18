@@ -15,6 +15,10 @@
 - Q: How should concurrent executions be handled? → A: Distinguish between read-write and read-only agents; read-write only allow 1 concurrent execution, read-only allow multiple concurrent executions
 - Q: How should sensitive data in agent inputs/outputs be handled? → A: System MUST NOT store or log sensitive data from agent inputs/outputs
 
+### Session 2025-11-18 (Additional)
+
+- Q: What A2A protocol specification should be implemented? → A: Implement A2A Protocol v0.3.0 using github.com/a2aproject/a2a-go library with support for JSON-RPC 2.0, gRPC, and HTTP+JSON/REST transport protocols as defined in docs/researchs/A2A_Protocol_Endpoints_Spec.md
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Configure and Execute CLI AI Agents (Priority: P1)
@@ -81,7 +85,7 @@ As a user, I want to configure scheduled tasks that automatically execute my CLI
 ### Functional Requirements
 
 - **FR-001**: System MUST support configuration of multiple CLI AI agents through a generic configuration schema that works with any command-line AI agent without code changes
-- **FR-002**: System MUST provide A2A endpoints that allow external systems to trigger agent execution programmatically
+- **FR-002**: System MUST provide A2A endpoints that implement A2A Protocol v0.3.0 specification with support for JSON-RPC 2.0, gRPC, and HTTP+JSON/REST transport protocols
 - **FR-003**: Users MUST be able to configure scheduled tasks that automatically execute agents at specified intervals or times
 - **FR-004**: System MUST capture and return the output from executed CLI AI agents to the caller
 - **FR-005**: System MUST maintain separate configuration profiles for different agent instances
