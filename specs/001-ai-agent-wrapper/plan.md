@@ -1,6 +1,6 @@
 # Implementation Plan: AI Agent Wrapper
 
-**Branch**: `1-ai-agent-wrapper` | **Date**: 2025-11-18 | **Spec**: [specs/1-ai-agent-wrapper/spec.md](specs/1-ai-agent-wrapper/spec.md)
+**Branch**: `001-ai-agent-wrapper` | **Date**: 2025-11-18 | **Spec**: [specs/001-ai-agent-wrapper/spec.md](specs/001-ai-agent-wrapper/spec.md)
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
@@ -53,7 +53,7 @@ The AI Agent Wrapper feature provides a unified interface to wrap multiple CLI A
 ### Documentation (this feature)
 
 ```text
-specs/1-ai-agent-wrapper/
+specs/001-ai-agent-wrapper/
 ├── plan.md              # This file (/speckit.plan command output)
 ├── research.md          # Phase 0 output (/speckit.plan command)
 ├── data-model.md        # Phase 1 output (/speckit.plan command)
