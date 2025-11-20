@@ -83,32 +83,33 @@ func ConvertMessageToA2AGo(msg *A2AMessage) *a2a.Message {
 
 	// Create the a2a-go message format
 	a2aGoMsg := &a2a.Message{
-		ID:          msg.ID,
-		Type:        a2a.MessageType(msg.Type),
-		Timestamp:   msg.Timestamp,
-		InResponseTo: msg.InResponseTo,
-		Context: &a2a.Context{
-			From:          msg.Context.From,
-			To:            msg.Context.To,
-			ConversationID: msg.Context.ConversationID,
-			MessageID:     msg.Context.MessageID,
+		ID:        msg.ID,
+		ContextID: msg.Context.ConversationID,
+		Role:      a2a.MessageRole(msg.Type), // Map our Type to their Role
+		Metadata: map[string]any{
+			"timestamp":     msg.Timestamp,
+			"inResponseTo":  msg.InResponseTo,
+			"from":          msg.Context.From,
+			"to":            msg.Context.To,
+			"messageId":     msg.Context.MessageID,
+			"protocol":      msg.Protocol,
+			"version":       msg.Version,
 		},
-		Payload: &a2a.Payload{},
 	}
 
-	// Copy payload if it exists
+	// Add payload information to metadata if it exists
 	if msg.Payload != nil {
-		a2aGoMsg.Payload = &a2a.Payload{
-			Method: msg.Payload.Method,
-			Params: msg.Payload.Params,
-			Result: msg.Payload.Result,
+		a2aGoMsg.Metadata["payload"] = map[string]any{
+			"method": msg.Payload.Method,
+			"params": msg.Payload.Params,
+			"result": msg.Payload.Result,
 		}
 
 		if msg.Payload.Error != nil {
-			a2aGoMsg.Payload.Error = &a2a.Error{
-				Code:    msg.Payload.Error.Code,
-				Message: msg.Payload.Error.Message,
-				Data:    msg.Payload.Error.Data,
+			a2aGoMsg.Metadata["error"] = map[string]any{
+				"code":    msg.Payload.Error.Code,
+				"message": msg.Payload.Error.Message,
+				"data":    msg.Payload.Error.Data,
 			}
 		}
 	}
@@ -124,32 +125,61 @@ func ConvertMessageFromA2AGo(msg *a2a.Message) *A2AMessage {
 
 	// Create internal message format from a2a-go message
 	internalMsg := &A2AMessage{
-		Protocol:    "a2a",
-		Version:     "0.3.0",
-		ID:          msg.ID,
-		Type:        string(msg.Type),
-		Timestamp:   msg.Timestamp,
-		InResponseTo: msg.InResponseTo,
+		Protocol:  "a2a",
+		Version:   "0.3.0",
+		ID:        msg.ID,
+		Type:      string(msg.Role), // Map their Role to our Type
+		Timestamp: time.Now(), // Default to current time since a2a-go doesn't have timestamp
 		Context: &A2AContext{
-			From:          msg.Context.From,
-			To:            msg.Context.To,
-			ConversationID: msg.Context.ConversationID,
-			MessageID:     msg.Context.MessageID,
+			ConversationID: msg.ContextID,
+			MessageID:      msg.ID,
 		},
 		Payload: &A2APayload{},
 	}
 
-	// Copy payload if it exists
-	if msg.Payload != nil {
-		internalMsg.Payload.Method = msg.Payload.Method
-		internalMsg.Payload.Params = msg.Payload.Params
-		internalMsg.Payload.Result = msg.Payload.Result
+	// Extract additional context from metadata if available
+	if msg.Metadata != nil {
+		if timestamp, ok := msg.Metadata["timestamp"].(time.Time); ok {
+			internalMsg.Timestamp = timestamp
+		}
+		if inResponseTo, ok := msg.Metadata["inResponseTo"].(string); ok {
+			internalMsg.InResponseTo = inResponseTo
+		}
+		if from, ok := msg.Metadata["from"].(string); ok {
+			internalMsg.Context.From = from
+		}
+		if to, ok := msg.Metadata["to"].(string); ok {
+			internalMsg.Context.To = to
+		}
+		if messageId, ok := msg.Metadata["messageId"].(string); ok {
+			internalMsg.Context.MessageID = messageId
+		}
 
-		if msg.Payload.Error != nil {
-			internalMsg.Payload.Error = &A2AError{
-				Code:    msg.Payload.Error.Code,
-				Message: msg.Payload.Error.Message,
-				Data:    msg.Payload.Error.Data,
+		// Extract payload from metadata if available
+		if payloadData, ok := msg.Metadata["payload"].(map[string]any); ok {
+			if method, ok := payloadData["method"].(string); ok {
+				internalMsg.Payload.Method = method
+			}
+			if params, ok := payloadData["params"].(map[string]any); ok {
+				internalMsg.Payload.Params = params
+			}
+			if result, ok := payloadData["result"]; ok {
+				internalMsg.Payload.Result = result
+			}
+		}
+
+		// Extract error from metadata if available
+		if errorData, ok := msg.Metadata["error"].(map[string]any); ok {
+			if code, ok := errorData["code"].(int); ok {
+				if message, ok := errorData["message"].(string); ok {
+					if data, ok := errorData["data"]; ok {
+						internalMsg.Payload.Error = &A2AError{
+							Code:    code,
+							Message: message,
+							Data:    data,
+						}
+					}
+				}
 			}
 		}
 	}

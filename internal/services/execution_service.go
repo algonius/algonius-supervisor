@@ -186,17 +186,19 @@ func (es *ExecutionService) ExecuteAgent(ctx context.Context, agent agents.IAgen
 	// Update execution state based on result
 	if err != nil {
 		// Determine if this is a permanent or transient error for better error categorization
-		if es.isTransientError(err) {
+		if es.IsTransientError(err) {
 			execution.ErrorCategory = models.TransientError
 		} else {
 			execution.ErrorCategory = models.PermanentError
 		}
 
-		// Update state to failed
-		if updateErr := execution.UpdateState(models.FailedState); updateErr != nil {
-			es.logger.Error("failed to update execution state to failed",
-				zap.String("execution_id", execution.ID),
-				zap.Error(updateErr))
+		// Update state to failed (only if not already failed)
+		if execution.State != types.FailedState {
+			if updateErr := execution.UpdateState(models.FailedState); updateErr != nil {
+				es.logger.Error("failed to update execution state to failed",
+					zap.String("execution_id", execution.ID),
+					zap.Error(updateErr))
+			}
 		}
 		// Sanitize error message before storing
 		execution.ErrorMessage = es.sanitizeSensitiveData(err.Error())
@@ -267,11 +269,14 @@ func (es *ExecutionService) executeWithRetry(ctx context.Context, execution *mod
 			zap.Int("retry_count", execution.RetryCount))
 
 		// Update state to running
-		if err := execution.UpdateState(models.RunningState); err != nil {
-			es.logger.Error("failed to update execution state to running",
-				zap.String("execution_id", execution.ID),
-				zap.Error(err))
-			return nil, fmt.Errorf("failed to update execution state: %w", err)
+		// On retry, the state should be Failed -> Starting -> Running
+		if execution.State != types.RunningState {
+			if err := execution.UpdateState(models.RunningState); err != nil {
+				es.logger.Error("failed to update execution state to running",
+					zap.String("execution_id", execution.ID),
+					zap.Error(err))
+				return nil, fmt.Errorf("failed to update execution state: %w", err)
+			}
 		}
 
 		// Update in tracking maps
@@ -294,11 +299,21 @@ func (es *ExecutionService) executeWithRetry(ctx context.Context, execution *mod
 			// Store the error for potential retry
 			lastErr = err
 
+			// Update state to failed before retry logic
+			execution.UpdateState(models.FailedState)
+
 			// Check if this is a transient error and we haven't exceeded max retries
-			if execution.RetryCount < execution.MaxRetries && es.isTransientError(err) {
+			if execution.RetryCount < execution.MaxRetries && es.IsTransientError(err) {
 				// Wait before retrying (exponential backoff)
 				waitTime := time.Duration(execution.RetryCount) * time.Second
 				time.Sleep(waitTime)
+
+				// Transition to starting state for retry
+				if err := execution.UpdateState(models.StartingState); err != nil {
+					es.logger.Error("failed to update execution state to starting for retry",
+						zap.String("execution_id", execution.ID),
+						zap.Error(err))
+				}
 				continue // Retry
 			} else {
 				// Permanent error or max retries reached
@@ -307,6 +322,7 @@ func (es *ExecutionService) executeWithRetry(ctx context.Context, execution *mod
 		} else {
 			// Execution was successful
 			lastResult = result
+			lastErr = nil // Clear the error on success
 			break
 		}
 	}
@@ -361,8 +377,8 @@ func (es *ExecutionService) executeWithResourceMonitoring(ctx context.Context, a
 	return result, err
 }
 
-// isTransientError checks if an error is transient and suitable for retry
-func (es *ExecutionService) isTransientError(err error) bool {
+// IsTransientError checks if an error is transient and suitable for retry
+func (es *ExecutionService) IsTransientError(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -379,6 +395,11 @@ func (es *ExecutionService) isTransientError(err error) bool {
 		"resource unavailable",
 		"try again",
 		"temporarily unavailable",
+		"name resolution",
+		"dns",
+		"deadline exceeded",
+		"temporary",
+		"connection timeout",
 	}
 
 	for _, pattern := range transientPatterns {
@@ -797,5 +818,6 @@ func (es *ExecutionService) UpdateExecutionState(executionID string, newState ty
 func generateExecutionID() string {
 	// In a real implementation, this would generate a proper UUID
 	// For example, using github.com/google/uuid
-	return "exec-" + time.Now().Format("20060102-150405")
+	// Using nanosecond precision and a random component to ensure uniqueness
+	return fmt.Sprintf("exec-%s-%d", time.Now().Format("20060102-150405"), time.Now().Nanosecond())
 }

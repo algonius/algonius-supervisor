@@ -88,7 +88,7 @@ test: test-unit test-integration
 # Run unit tests
 test-unit:
 	@echo "Running unit tests..."
-	$(GOTEST) $(TEST_FLAGS) ./internal/services/unit ./internal/models ./internal/agents ./internal/a2a ./internal/api/handlers ./internal/clients ./pkg/... -run "$(TEST_PATTERN)"
+	$(GOTEST) $(TEST_FLAGS) ./tests/unit/... -run "$(TEST_PATTERN)"
 
 # Run integration tests
 test-integration:

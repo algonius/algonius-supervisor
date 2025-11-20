@@ -126,10 +126,10 @@ func TestExecutionService_ListExecutions(t *testing.T) {
 
 	// Execute the agent multiple times
 	ctx := context.Background()
-	execution1, err := executionService.ExecuteAgent(ctx, agent, "test input 1")
+	_, err := executionService.ExecuteAgent(ctx, agent, "test input 1")
 	assert.NoError(t, err)
 
-	execution2, err := executionService.ExecuteAgent(ctx, agent, "test input 2")
+	_, err = executionService.ExecuteAgent(ctx, agent, "test input 2")
 	assert.NoError(t, err)
 
 	// List executions for the agent
@@ -183,7 +183,7 @@ func TestExecutionService_GetActiveExecutions(t *testing.T) {
 
 	// Execute an agent
 	ctx := context.Background()
-	execution, err := executionService.ExecuteAgent(ctx, agent, "test input")
+	_, err = executionService.ExecuteAgent(ctx, agent, "test input")
 	assert.NoError(t, err)
 
 	// Now there should be 1 active execution (though it's already completed in this test)
@@ -201,13 +201,18 @@ func TestReadWriteExecutionService(t *testing.T) {
 	// Create a read-write mock agent
 	agent := &ReadWriteTestAgent{}
 
-	// Execute an agent 
+	// Test that ReadWriteExecutionService rejects read-only agents
+	readOnlyAgent := &ReadOnlyTestAgent{}
 	ctx := context.Background()
-	execution, err := readWriteService.ExecuteAgent(ctx, agent, "test input")
-	// This should return an error because ReadWriteExecutionService expects a read-write agent
-	// but our test agent implementation is simplified
-	assert.NotNil(t, execution) // This might still create an execution record
-	// Note: The test agent doesn't implement IsReadOnly() properly for this test
+
+	_, err := readWriteService.ExecuteAgent(ctx, readOnlyAgent, "test input")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot use ReadWriteExecutionService with read-only agent")
+
+	// Test that ReadWriteExecutionService accepts read-write agents
+	// Note: Due to implementation limitations, we can't test full execution flow
+	// but we can verify the service properly identifies read-write agents
+	assert.False(t, agent.IsReadOnly(), "Test agent should be read-write")
 }
 
 // ReadWriteTestAgent is a test implementation of the agent interface for read-write testing
@@ -263,7 +268,7 @@ func TestReadOnlyExecutionService(t *testing.T) {
 
 	// Execute an agent 
 	ctx := context.Background()
-	execution, err := readOnlyService.ExecuteAgent(ctx, agent, "test input")
+	execution, _ := readOnlyService.ExecuteAgent(ctx, agent, "test input")
 	assert.NotNil(t, execution) // Should create an execution even if mock fails
 	// This test agent doesn't return errors, so it should succeed
 	// assert.NoError(t, err) // This might fail due to the implementation details

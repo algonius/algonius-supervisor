@@ -3,7 +3,6 @@ package unit
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/algonius/algonius-supervisor/internal/models"
 	"github.com/algonius/algonius-supervisor/internal/services"
@@ -305,7 +304,7 @@ func TestAgentService_ValidateAgentConfiguration(t *testing.T) {
 
 	err = agentService.ValidateAgentConfiguration(invalidConfig1)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "MaxConcurrentExecutions equal to 1")
+	assert.Contains(t, err.Error(), "ReadWrite agents must have MaxConcurrentExecutions of 1")
 
 	// Test config with file patterns but no templates (should fail)
 	invalidConfig2 := &models.AgentConfiguration{
