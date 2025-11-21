@@ -3,6 +3,8 @@
 Auto-generated from all feature plans. Last updated: 2025-11-18
 
 ## Active Technologies
+- Go 1.23 (aligned with existing codebase) + github.com/spf13/cobra for CLI framework, existing HTTP API client, github.com/spf13/viper for configuration (002-add-supervisorctl)
+- No additional storage required - uses existing agent management infrastructure (002-add-supervisorctl)
 
 - Go 1.23 (001-ai-agent-wrapper)
 - Configuration files and execution logs (files) (001-ai-agent-wrapper)
@@ -133,12 +135,10 @@ Agent executions follow a strict state machine:
 Go 1.23: Follow standard conventions
 
 ## Recent Changes
+- 002-add-supervisorctl: Added Go 1.23 (aligned with existing codebase) + github.com/spf13/cobra for CLI framework, existing HTTP API client, github.com/spf13/viper for configuration
 
 - 001-ai-agent-wrapper: Added Go 1.23
 - 001-ai-agent-wrapper: Added CLI agent lifecycle management with state machine pattern
-- 001-ai-agent-wrapper: Added execution services for read-write and read-only agents
-- 001-ai-agent-wrapper: Added comprehensive error handling with retry logic
-- 001-ai-agent-wrapper: Added resource usage monitoring and structured logging
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
