@@ -92,19 +92,23 @@ cmd/
 ├── supervisord/         # Renamed from cmd/supervisor/
 │   └── main.go          # Supervisor daemon entry point
 └── supervisorctl/       # NEW: CLI control client
-    └── main.go          # CLI entry point
+    ├── main.go          # CLI entry point
+    └── commands/        # Command implementations (relocated from internal/cli/commands)
 
 internal/
-├── cli/                 # NEW: CLI-specific logic
-│   ├── commands/        # Command implementations
+├── cli/                 # CLI-specific internal logic
 │   ├── client/          # HTTP client for supervisor API
-│   └── config/          # CLI configuration management
+│   ├── config/          # CLI configuration management
+│   ├── errors/          # Error handling
+│   ├── formatter/       # Output formatters
+│   ├── logging/         # CLI logging
+│   └── patterns/        # Pattern matching for batch operations
 ├── models/              # Existing: shared data models
 ├── services/            # Existing: business logic services
 └── api/                 # Existing: HTTP API handlers
 
 pkg/
-├── supervisorctl/       # NEW: Public CLI interfaces
+├── supervisorctl/       # Public CLI interfaces
 │   └── interfaces.go    # CLI service interfaces
 
 tests/
@@ -113,7 +117,7 @@ tests/
 └── contract/            # Contract tests for CLI behavior
 ```
 
-**Structure Decision**: Single project structure extending existing codebase. The CLI client (supervisorctl) is added as a new cmd entry point with shared internal services for HTTP communication and configuration management. This maintains consistency with existing architecture while providing clear separation of concerns between daemon and client components.
+**Structure Decision**: Single project structure extending existing codebase following Go best practices. The CLI client (supervisorctl) is added as a new cmd entry point with command implementations in cmd/supervisorctl/commands, while shared internal services (client, config, errors, formatters, logging, patterns) remain in internal/cli/. This maintains consistency with Go project layout standards while providing clear separation of concerns between daemon and client components.
 
 ## Complexity Tracking
 
