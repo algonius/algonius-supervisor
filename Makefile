@@ -184,7 +184,7 @@ help:
 # Run the application in development mode
 run-dev:
 	@echo "Running development server..."
-	$(GOCMD) run $(CMD_DIR)
+	$(GOCMD) run $(CMD_DIR)/main.go
 
 # Build and run
 build-run: build
