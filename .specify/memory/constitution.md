@@ -1,11 +1,11 @@
 <!--
 Sync Impact Report:
-- Version change: 1.1.1 → 1.2.0 (added MCP and A2A Protocol libraries)
-- Modified sections: Technology Stack section updated to include MCP and A2A Protocol
-- Added sections: None
+- Version change: 1.2.0 → 1.3.0 (added Go interface naming convention)
+- Modified sections: Core Principles section - added Principle VI
+- Added sections: Principle VI - Go Interface Naming Convention
 - Removed sections: None
 - Templates requiring updates: ✅ plan-template.md, spec-template.md, tasks-template.md
-- No follow-up TODOs (all placeholders resolved)
+- Follow-up TODOs: Update existing code to follow I-prefix convention in future refactoring
 -->
 # algonius-supervisor Constitution
 
@@ -25,6 +25,17 @@ System design should start with well-defined interfaces that specify contracts b
 
 ### V. Code as Documentation
 Code must be self-explanatory with clear variable names, function names, and package structures. Comprehensive comments should explain the "why" when the "what" isn't obvious. All public functions and types must have godoc-compliant documentation.
+
+### VI. Go Interface Naming Convention
+All Go interfaces MUST be prefixed with "I" followed by a descriptive name using PascalCase. This convention ensures clear identification of interfaces throughout the codebase and maintains consistency with the interface-driven design principle.
+
+**Examples:**
+- `IA2AService` - A2A protocol service interface
+- `IAgentService` - Agent management service interface
+- `IExecutionResult` - Execution result interface
+- `ITaskManager` - Task management interface
+
+**Rationale:** This naming convention provides immediate visual identification of interfaces, making code more readable and maintaining consistency with interface-driven architecture. It helps developers quickly distinguish between interfaces and concrete implementations.
 
 ## Technology Stack
 
@@ -47,4 +58,4 @@ All contributions require code review, passing tests, and adherence to Go coding
 
 This constitution governs all development and operations of the algonius-supervisor project. All feature specifications and implementation plans must validate against these principles. Amendments require documentation of impact assessment and approval from maintainers.
 
-**Version**: 1.2.0 | **Ratified**: 2025-11-18 | **Last Amended**: 2025-11-18
+**Version**: 1.3.0 | **Ratified**: 2025-11-18 | **Last Amended**: 2025-11-18
