@@ -1,0 +1,523 @@
+openapi: 3.0.3
+info:
+  title: supervisorctl API Contract
+  description: API contract between supervisorctl CLI and supervisord HTTP API
+  version: 1.0.0
+  contact:
+    name: algonius-supervisor
+
+servers:
+  - url: http://localhost:8080
+    description: Default supervisord endpoint
+
+paths:
+  /health:
+    get:
+      summary: Check if supervisord is running
+      operationId: healthCheck
+      tags:
+        - system
+      responses:
+        '200':
+          description: Supervisord is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Supervisord is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/agents:
+    get:
+      summary: Get status of all agents
+      operationId: getAllAgents
+      tags:
+        - agents
+      parameters:
+        - name: state
+          in: query
+          schema:
+            type: string
+            enum: [RUNNING, STOPPED, FAILED, COMPLETED]
+          description: Filter by agent state
+      responses:
+        '200':
+          description: List of agent statuses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgentStatus'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/agents/{agentName}:
+    get:
+      summary: Get status of specific agent
+      operationId: getAgentStatus
+      tags:
+        - agents
+      parameters:
+        - name: agentName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the agent
+      responses:
+        '200':
+          description: Agent status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentStatus'
+        '404':
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/agents/{agentName}/start:
+    post:
+      summary: Start an agent
+      operationId: startAgent
+      tags:
+        - agents
+      parameters:
+        - name: agentName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the agent to start
+      responses:
+        '200':
+          description: Agent start operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+        '404':
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Agent already running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/agents/{agentName}/stop:
+    post:
+      summary: Stop an agent
+      operationId: stopAgent
+      tags:
+        - agents
+      parameters:
+        - name: agentName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the agent to stop
+      responses:
+        '200':
+          description: Agent stop operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+        '404':
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/agents/{agentName}/restart:
+    post:
+      summary: Restart an agent
+      operationId: restartAgent
+      tags:
+        - agents
+      parameters:
+        - name: agentName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the agent to restart
+      responses:
+        '200':
+          description: Agent restart operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+        '404':
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/agents/batch:
+    post:
+      summary: Batch operation on multiple agents
+      operationId: batchOperation
+      tags:
+        - agents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchRequest'
+      responses:
+        '200':
+          description: Batch operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchResult'
+        '400':
+          description: Invalid batch request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/agents/{agentName}/logs:
+    get:
+      summary: Get agent logs
+      operationId: getAgentLogs
+      tags:
+        - logs
+      parameters:
+        - name: agentName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the agent
+        - name: follow
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Whether to follow logs (server-sent events)
+        - name: lines
+          in: query
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 10000
+          description: Number of lines to return
+      responses:
+        '200':
+          description: Agent logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LogEntry'
+            text/event-stream:
+              schema:
+                type: string
+              description: Server-sent events for log streaming
+        '404':
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/events:
+    get:
+      summary: Stream agent lifecycle events
+      operationId: getEventStream
+      tags:
+        - events
+      responses:
+        '200':
+          description: Event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              description: Server-sent events for agent lifecycle events
+
+  /api/v1/system/info:
+    get:
+      summary: Get system information
+      operationId: getSystemInfo
+      tags:
+        - system
+      responses:
+        '200':
+          description: System information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemInfo'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        service:
+          type: string
+          example: algonius-supervisor
+
+    AgentStatus:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Agent name
+          example: web-server
+        state:
+          type: string
+          enum: [RUNNING, STOPPED, FAILED, COMPLETED, STARTING, STOPPING]
+          description: Current agent state
+        pid:
+          type: integer
+          description: Process ID (0 if not running)
+          example: 1234
+        start_time:
+          type: string
+          format: date-time
+          description: When agent was started
+        duration:
+          type: string
+          description: How long agent has been running
+          example: 2h30m15s
+        exit_status:
+          type: integer
+          description: Exit code (if stopped/failed)
+          minimum: 0
+          maximum: 255
+        restart_count:
+          type: integer
+          description: Number of times agent has been restarted
+          minimum: 0
+        last_error:
+          type: string
+          description: Last error message (if any)
+        cpu_usage:
+          type: number
+          format: float
+          description: CPU usage percentage
+          minimum: 0
+          maximum: 100
+        memory_usage:
+          type: integer
+          format: int64
+          description: Memory usage in bytes
+        disk_usage:
+          type: integer
+          format: int64
+          description: Disk usage in bytes
+
+    OperationResult:
+      type: object
+      properties:
+        agent_name:
+          type: string
+          description: Name of the agent
+        success:
+          type: boolean
+          description: Whether operation succeeded
+        message:
+          type: string
+          description: Success message (if successful)
+        error:
+          type: string
+          description: Error message (if failed)
+        timestamp:
+          type: string
+          format: date-time
+          description: When operation completed
+
+    BatchRequest:
+      type: object
+      properties:
+        operation:
+          type: string
+          enum: [start, stop, restart]
+          description: Operation to perform
+        agents:
+          type: array
+          items:
+            type: string
+          description: List of agent names
+          example: [web-server, worker, database]
+        timeout:
+          type: integer
+          description: Operation timeout in seconds
+          default: 30
+          minimum: 5
+          maximum: 300
+
+    BatchResult:
+      type: object
+      properties:
+        operation:
+          type: string
+          enum: [start, stop, restart]
+        successes:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationResult'
+        failures:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationResult'
+        summary:
+          $ref: '#/components/schemas/OperationSummary'
+
+    OperationSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of agents in operation
+        succeeded:
+          type: integer
+          description: Number of successful operations
+        failed:
+          type: integer
+          description: Number of failed operations
+        duration:
+          type: string
+          description: Total operation duration
+          example: 5.234s
+
+    LogEntry:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Log entry timestamp
+        agent_name:
+          type: string
+          description: Name of the agent that generated the log
+        level:
+          type: string
+          enum: [DEBUG, INFO, WARN, ERROR]
+          description: Log level
+        message:
+          type: string
+          description: Log message content
+        source:
+          type: string
+          enum: [stdout, stderr]
+          description: Output source
+
+    AgentEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique event identifier
+        timestamp:
+          type: string
+          format: date-time
+          description: Event timestamp
+        agent_name:
+          type: string
+          description: Name of the agent
+        event_type:
+          type: string
+          enum: [STARTED, STOPPED, FAILED, COMPLETED, RESTARTED]
+          description: Type of lifecycle event
+        details:
+          type: string
+          description: Additional event details
+        pid:
+          type: integer
+          description: Process ID (if applicable)
+
+    SystemInfo:
+      type: object
+      properties:
+        version:
+          type: string
+          description: Supervisord version
+        uptime:
+          type: string
+          description: System uptime
+        agent_count:
+          type: integer
+          description: Number of configured agents
+        running_agents:
+          type: integer
+          description: Number of currently running agents
+        system_load:
+          type: array
+          items:
+            type: number
+          description: System load averages (1m, 5m, 15m)
+          minItems: 3
+          maxItems: 3
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: CONNECTION_ERROR
+        message:
+          type: string
+          description: Human-readable error message
+          example: Failed to connect to supervisord
+        details:
+          type: object
+          description: Additional error details
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: agents
+    description: Agent management operations
+  - name: logs
+    description: Log retrieval operations
+  - name: events
+    description: Event streaming operations
+  - name: system
+    description: System information operations
