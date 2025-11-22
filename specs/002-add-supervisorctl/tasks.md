@@ -71,16 +71,16 @@ description: "Task list for supervisorctl CLI implementation"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T015 [P] [US1] Contract test for status command HTTP API communication in tests/contract/test_status.go
-- [ ] T016 [P] [US1] Contract test for start/stop/restart commands in tests/contract/test_lifecycle.go
-- [ ] T017 [P] [US1] Integration test for basic agent control workflow in tests/integration/test_cli_control.go
+- [x] T015 [P] [US1] Contract test for status command HTTP API communication in tests/contract/test_status.go
+- [x] T016 [P] [US1] Contract test for start/stop/restart commands in tests/contract/test_lifecycle.go
+- [x] T017 [P] [US1] Integration test for basic agent control workflow in tests/integration/test_cli_control.go
 
 ### Implementation for User Story 1
 
-- [ ] T018 [P] [US1] Create AgentStatus model in internal/models/agent_status.go
-- [ ] T019 [P] [US1] Create OperationResult model in internal/models/operation_result.go
-- [ ] T020 [P] [US1] Create pattern matching logic in internal/cli/patterns/matcher.go
-- [ ] T021 [US1] Implement supervisorctl client core methods in internal/cli/client/supervisor_client.go (depends on T018, T019, T020)
+- [x] T018 [P] [US1] Create AgentStatus model in internal/models/agent_status.go
+- [x] T019 [P] [US1] Create OperationResult model in internal/models/operation_result.go
+- [x] T020 [P] [US1] Create pattern matching logic in internal/cli/patterns/matcher.go
+- [x] T021 [US1] Implement supervisorctl client core methods in internal/cli/client/supervisor_client.go (depends on T018, T019, T020)
 - [ ] T022 [US1] Implement status command in internal/cli/commands/status.go
 - [ ] T023 [US1] Implement start command in internal/cli/commands/start.go
 - [ ] T024 [US1] Implement stop command in internal/cli/commands/stop.go

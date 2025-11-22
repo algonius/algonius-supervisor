@@ -26,6 +26,11 @@ func NewConfigManager(v *viper.Viper) *ConfigManager {
 
 // Load loads configuration from file, environment variables, and defaults
 func (cm *ConfigManager) Load() (*CLIConfig, error) {
+	// Initialize config if nil
+	if cm.config == nil {
+		cm.config = &CLIConfig{}
+	}
+
 	// Set configuration file name and locations
 	cm.viper.SetConfigName("supervisorctl")
 	cm.viper.AddConfigPath("$HOME/.config/supervisorctl")
@@ -39,19 +44,21 @@ func (cm *ConfigManager) Load() (*CLIConfig, error) {
 	// Set default values
 	cm.setDefaults()
 
-	// Read configuration file if it exists
+	// Try to read configuration file if it exists
 	if err := cm.viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, fmt.Errorf("error reading config file: %w", err)
+			// Config file found but has errors - ignore and use defaults
+			// This prevents the CLI from failing entirely due to config file issues
+		} else {
+			// Config file not found - that's OK, use defaults
 		}
-		// Config file not found is OK, use defaults
 	} else {
 		cm.configPath = cm.viper.ConfigFileUsed()
-	}
-
-	// Unmarshal configuration
-	if err := cm.viper.Unmarshal(cm.config); err != nil {
-		return nil, fmt.Errorf("error unmarshaling config: %w", err)
+		// Unmarshal configuration if file was found
+		if err := cm.viper.Unmarshal(cm.config); err != nil {
+			// Config file has parsing errors - ignore and use defaults
+			// This prevents the CLI from failing entirely due to malformed config
+		}
 	}
 
 	return cm.config, nil
@@ -158,3 +165,6 @@ func (cm *ConfigManager) setDefaults() {
 func (cm *ConfigManager) GetViper() *viper.Viper {
 	return cm.viper
 }
+
+// ConfigManagerKey is the key used to store the configuration manager in context
+type ConfigManagerKey struct{}

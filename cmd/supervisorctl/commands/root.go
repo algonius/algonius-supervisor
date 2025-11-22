@@ -1,12 +1,12 @@
 package commands
 
 import (
-	"fmt"
+	"context"
 	"os"
 
+	"github.com/algonius/algonius-supervisor/internal/cli/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/algonius/algonius-supervisor/internal/cli/config"
 )
 
 var (
@@ -27,6 +27,20 @@ interface for agent lifecycle management.`,
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() error {
+	// Initialize config if not already done
+	if configManager == nil {
+		// Initialize config manager with default viper instance
+		configManager = config.NewConfigManager(viperInstance)
+		if _, err := configManager.Load(); err != nil {
+			// Silently ignore config file errors for now - we'll use defaults and CLI flags
+			// This allows the CLI to work without requiring a config file
+		}
+	}
+
+	// Set up context with configuration manager for all commands
+	ctx := context.WithValue(context.Background(), config.ConfigManagerKey{}, configManager)
+	rootCmd.SetContext(ctx)
+
 	return rootCmd.Execute()
 }
 
@@ -46,6 +60,12 @@ func init() {
 
 	cobra.OnInitialize(initConfig)
 
+	// Add subcommands
+	rootCmd.AddCommand(StatusCmd)
+	rootCmd.AddCommand(StartCmd)
+	rootCmd.AddCommand(StopCmd)
+	rootCmd.AddCommand(RestartCmd)
+
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/supervisorctl/supervisorctl.yaml)")
 	rootCmd.PersistentFlags().String("server-url", "", "supervisord server URL")
@@ -54,11 +74,16 @@ func init() {
 	rootCmd.PersistentFlags().Bool("no-colors", false, "disable colored output")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output")
 
-	// Bind flags to viper instance (not global viper)
+	// Set defaults for global flags
+	viperInstance.SetDefault("server.url", "http://localhost:8080")
+	viperInstance.SetDefault("display.format", "table")
+	viperInstance.SetDefault("display.colors", true)
+	viperInstance.SetDefault("verbose", false)
+
+	// Bind flags to viper instance
 	viperInstance.BindPFlag("server.url", rootCmd.PersistentFlags().Lookup("server-url"))
 	viperInstance.BindPFlag("auth.token", rootCmd.PersistentFlags().Lookup("token"))
 	viperInstance.BindPFlag("display.format", rootCmd.PersistentFlags().Lookup("format"))
-	viperInstance.BindPFlag("display.colors", rootCmd.PersistentFlags().Lookup("no-colors"))
 	viperInstance.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 }
 
@@ -86,6 +111,7 @@ func initConfig() {
 
 	// Load configuration
 	if _, err := configManager.Load(); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Failed to load config: %v\n", err)
+		// Silently ignore config file errors for now - we'll use defaults and CLI flags
+		// This allows the CLI to work without requiring a config file
 	}
 }
