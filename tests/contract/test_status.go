@@ -1,7 +1,6 @@
 package contract
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,12 +14,12 @@ import (
 
 // MockAgentStatus represents the expected response format for agent status
 type MockAgentStatus struct {
-	Name    string `json:"name"`
-	State   string `json:"state"`
-	PID     int    `json:"pid,omitempty"`
-	Uptime  string `json:"uptime"`
-	Mem     string `json:"memory"`
-	CPU     string `json:"cpu"`
+	Name   string `json:"name"`
+	State  string `json:"state"`
+	PID    int    `json:"pid,omitempty"`
+	Uptime string `json:"uptime"`
+	Mem    string `json:"memory"`
+	CPU    string `json:"cpu"`
 }
 
 // MockSupervisorAPI creates a mock supervisor HTTP API for testing
@@ -104,8 +103,8 @@ func TestStatusCommand_Contract_AllAgents(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var response struct {
-		Success bool               `json:"success"`
-		Data    []MockAgentStatus  `json:"data"`
+		Success bool              `json:"success"`
+		Data    []MockAgentStatus `json:"data"`
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&response)
@@ -147,7 +146,7 @@ func TestStatusCommand_Contract_SingleAgent(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 		var response struct {
-			Success bool          `json:"success"`
+			Success bool            `json:"success"`
 			Data    MockAgentStatus `json:"data"`
 		}
 
@@ -170,7 +169,7 @@ func TestStatusCommand_Contract_SingleAgent(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 
 		var response struct {
-			Success bool `json:"success"`
+			Success bool   `json:"success"`
 			Error   string `json:"error"`
 		}
 

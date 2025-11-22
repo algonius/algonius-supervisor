@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -52,31 +51,31 @@ func MockSupervisorIntegrationAPI() *gin.Engine {
 
 	// Initialize with some default agents
 	agents["web-server"] = &Agent{
-		Name:   "web-server",
-		State:  "RUNNING",
-		PID:    1001,
-		Uptime: "2:15:30",
-		Memory: "45.2MB",
-		CPU:    "3.1%",
+		Name:      "web-server",
+		State:     "RUNNING",
+		PID:       1001,
+		Uptime:    "2:15:30",
+		Memory:    "45.2MB",
+		CPU:       "3.1%",
 		StartTime: time.Now().Add(-2 * time.Hour),
 	}
 
 	agents["db-worker"] = &Agent{
-		Name:   "db-worker",
-		State:  "STOPPED",
-		Uptime: "0:00:00",
-		Memory: "0MB",
-		CPU:    "0.0%",
+		Name:      "db-worker",
+		State:     "STOPPED",
+		Uptime:    "0:00:00",
+		Memory:    "0MB",
+		CPU:       "0.0%",
 		StartTime: time.Time{},
 	}
 
 	agents["api-gateway"] = &Agent{
-		Name:   "api-gateway",
-		State:  "FATAL",
-		PID:    0,
-		Uptime: "0:05:12",
-		Memory: "12.8MB",
-		CPU:    "0.0%",
+		Name:      "api-gateway",
+		State:     "FATAL",
+		PID:       0,
+		Uptime:    "0:05:12",
+		Memory:    "12.8MB",
+		CPU:       "0.0%",
 		StartTime: time.Now().Add(-5 * time.Minute),
 	}
 
@@ -145,13 +144,13 @@ func MockSupervisorIntegrationAPI() *gin.Engine {
 		}()
 
 		result := map[string]interface{}{
-			"agent_name":    name,
-			"operation":     "start",
-			"success":       true,
-			"message":       fmt.Sprintf("Agent '%s' start initiated", name),
-			"timestamp":     time.Now().Format(time.RFC3339),
+			"agent_name":     name,
+			"operation":      "start",
+			"success":        true,
+			"message":        fmt.Sprintf("Agent '%s' start initiated", name),
+			"timestamp":      time.Now().Format(time.RFC3339),
 			"previous_state": "STOPPED",
-			"new_state":     "STARTING",
+			"new_state":      "STARTING",
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -188,13 +187,13 @@ func MockSupervisorIntegrationAPI() *gin.Engine {
 		agent.StartTime = time.Time{}
 
 		result := map[string]interface{}{
-			"agent_name":    name,
-			"operation":     "stop",
-			"success":       true,
-			"message":       fmt.Sprintf("Agent '%s' stopped successfully", name),
-			"timestamp":     time.Now().Format(time.RFC3339),
+			"agent_name":     name,
+			"operation":      "stop",
+			"success":        true,
+			"message":        fmt.Sprintf("Agent '%s' stopped successfully", name),
+			"timestamp":      time.Now().Format(time.RFC3339),
 			"previous_state": previousState,
-			"new_state":     "STOPPED",
+			"new_state":      "STOPPED",
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -229,13 +228,13 @@ func MockSupervisorIntegrationAPI() *gin.Engine {
 		}()
 
 		result := map[string]interface{}{
-			"agent_name":    name,
-			"operation":     "restart",
-			"success":       true,
-			"message":       fmt.Sprintf("Agent '%s' restart initiated", name),
-			"timestamp":     time.Now().Format(time.RFC3339),
+			"agent_name":     name,
+			"operation":      "restart",
+			"success":        true,
+			"message":        fmt.Sprintf("Agent '%s' restart initiated", name),
+			"timestamp":      time.Now().Format(time.RFC3339),
 			"previous_state": previousState,
-			"new_state":     "STARTING",
+			"new_state":      "STARTING",
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -535,7 +534,7 @@ func getAllAgentsStatus(ctx context.Context, serverURL, token string) ([]AgentSt
 	}
 
 	var response struct {
-		Success bool         `json:"success"`
+		Success bool          `json:"success"`
 		Data    []AgentStatus `json:"data"`
 	}
 
@@ -584,7 +583,7 @@ func performLifecycleOperation(ctx context.Context, method, url, token string) (
 	}
 
 	var response struct {
-		Success bool           `json:"success"`
+		Success bool            `json:"success"`
 		Data    OperationResult `json:"data"`
 	}
 
