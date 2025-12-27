@@ -135,3 +135,24 @@ func LogSensitiveData(logger *zap.Logger, message string, data string, shouldLog
 		logger.Info(message, zap.String("data", "[REDACTED]"))
 	}
 }
+
+var defaultLogger *zap.Logger
+
+// init initializes the default logger
+func init() {
+	logger, err := NewLogger("info")
+	if err != nil {
+		// Fallback to standard logger if zap fails
+		return
+	}
+	defaultLogger = logger
+}
+
+// GetLogger returns the default logger instance
+func GetLogger() *zap.Logger {
+	if defaultLogger == nil {
+		logger, _ := NewLogger("info")
+		return logger
+	}
+	return defaultLogger
+}
